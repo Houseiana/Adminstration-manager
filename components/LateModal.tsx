@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Modal } from "./Modal";
 import { useData, useLang } from "./Providers";
 import { useToast } from "./Toast";
-import { calcMonthDays } from "@/lib/payroll";
+import { calcMonthDays, totalMonthlySalary } from "@/lib/payroll";
 import { calcLateDeduction, minuteRate } from "@/lib/lateness";
 import { fmt, money } from "@/lib/i18n";
 import type { LateRecord } from "@/lib/types";
@@ -55,8 +55,9 @@ export function LateModal({ open, onClose, record, defaultEmpId }: Props) {
     if (!emp || !date) return { perMin: 0, total: 0 };
     const d = new Date(date);
     const monthInfo = calcMonthDays(d.getFullYear(), d.getMonth());
-    const perMin = minuteRate(emp.salary, monthInfo.workDays);
-    const total = calcLateDeduction(lateMinutes, emp.salary, monthInfo.workDays);
+    const compensation = totalMonthlySalary(emp);
+    const perMin = minuteRate(compensation, monthInfo.workDays);
+    const total = calcLateDeduction(lateMinutes, compensation, monthInfo.workDays);
     return { perMin, total };
   }, [emp, date, lateMinutes]);
 

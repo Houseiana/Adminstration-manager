@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useData, useLang } from "@/components/Providers";
 import { useToast } from "@/components/Toast";
 import { money } from "@/lib/i18n";
+import { totalMonthlySalary } from "@/lib/payroll";
 import { Avatar } from "@/components/Avatar";
 import { StatusBadge } from "@/components/Badges";
 import { EmployeeModal } from "@/components/EmployeeModal";
@@ -91,6 +92,16 @@ export default function EmployeeDetailPage() {
         ]
       : [
           [t("monthly_salary"), money(emp.salary, lang)],
+          [t("allowances"), money(emp.allowances ?? 0, lang)],
+          [t("commission"), money(emp.commission ?? 0, lang)],
+          [t("raise_amount"), money(emp.raise ?? 0, lang)],
+          [t("raise_date"), emp.raiseDate || "—"],
+          [
+            t("total_compensation"),
+            <span key="t" className="text-ink font-extrabold">
+              {money(totalMonthlySalary(emp), lang)}
+            </span>,
+          ],
           [t("payment_method"), t(`pm_${emp.paymentMethod}` as const)],
           [t("bank_account"), emp.bankAccount || "—"],
           [t("salary_start"), emp.hiringDate],
@@ -147,7 +158,7 @@ export default function EmployeeDetailPage() {
             <ProfStat label={t("c_id")} value={emp.id} mono />
             <ProfStat label={t("emp_type")} value={t(`t_${emp.type}` as const)} />
             <ProfStat label={t("hiring_date")} value={emp.hiringDate} mono />
-            <ProfStat label={t("monthly_salary")} value={money(emp.salary, lang)} mono />
+            <ProfStat label={t("total_compensation")} value={money(totalMonthlySalary(emp), lang)} mono />
           </div>
         </div>
 

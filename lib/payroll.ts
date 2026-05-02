@@ -90,6 +90,17 @@ export function adjKey(empId: string, year: number, month: number): string {
   return `${empId}-${year}-${month}`;
 }
 
+// Full monthly compensation = base + allowances + commission + raise.
+// This is the value that gets pro-rated by working days.
+export function totalMonthlySalary(emp: Employee): number {
+  return (
+    (Number(emp.salary) || 0) +
+    (Number(emp.allowances) || 0) +
+    (Number(emp.commission) || 0) +
+    (Number(emp.raise) || 0)
+  );
+}
+
 export function calcPayroll(
   emp: Employee,
   year: number,
@@ -106,7 +117,7 @@ export function calcPayroll(
     status: "draft",
   };
 
-  const monthlySalary = Number(emp.salary) || 0;
+  const monthlySalary = totalMonthlySalary(emp);
   const dailySalary = days.workDays > 0 ? monthlySalary / days.workDays : 0;
 
   const unpaidFromLeaves = autoUnpaidForMonth(emp.id, year, month, leaves);

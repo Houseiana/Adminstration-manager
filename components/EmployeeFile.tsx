@@ -5,7 +5,7 @@ import { useData, useLang } from "./Providers";
 import { useToast } from "./Toast";
 import { fmt, money } from "@/lib/i18n";
 import { calcLateDeduction } from "@/lib/lateness";
-import { calcMonthDays } from "@/lib/payroll";
+import { calcMonthDays, totalMonthlySalary } from "@/lib/payroll";
 import { leaveMultiplier, leaveWorkingDays } from "@/lib/leaves";
 import { ACT_COLORS, ACT_ICONS, ActivityModal } from "./ActivityModal";
 import type {
@@ -253,7 +253,7 @@ export function EmployeeFile({ employee }: Props) {
                   );
                   const ded = calcLateDeduction(
                     r.lateMinutes,
-                    employee.salary,
+                    totalMonthlySalary(employee),
                     monthInfo.workDays
                   );
                   return (

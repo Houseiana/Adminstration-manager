@@ -7,7 +7,7 @@ import { LateModal } from "@/components/LateModal";
 import { fmt, money } from "@/lib/i18n";
 import { Avatar } from "@/components/Avatar";
 import { calcLateDeduction } from "@/lib/lateness";
-import { calcMonthDays } from "@/lib/payroll";
+import { calcMonthDays, totalMonthlySalary } from "@/lib/payroll";
 import type { LateRecord } from "@/lib/types";
 
 export default function AttendancePage() {
@@ -32,8 +32,10 @@ export default function AttendancePage() {
     const e = employees.find((x) => x.id === id);
     return e ? t(`dept_${e.department}` as const) : "";
   };
-  const empSalary = (id: string) =>
-    employees.find((x) => x.id === id)?.salary ?? 0;
+  const empSalary = (id: string) => {
+    const e = employees.find((x) => x.id === id);
+    return e ? totalMonthlySalary(e) : 0;
+  };
 
   const filtered = useMemo(() => {
     return lateRecords.filter((r) => {

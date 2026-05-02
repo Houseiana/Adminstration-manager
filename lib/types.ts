@@ -46,6 +46,10 @@ export interface Employee {
   location: string;
   manager: string;
   salary: number;
+  allowances?: number;
+  commission?: number;
+  raise?: number;
+  raiseDate?: string;
   paymentMethod: PaymentMethod;
   bankAccount: string;
   status: EmployeeStatus;

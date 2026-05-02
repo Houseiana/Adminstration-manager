@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { I18N, type I18NKey } from "@/lib/i18n";
-import { buildSeedEmployees } from "@/lib/seed";
 import type {
   AdjustmentMap,
   Employee,
@@ -81,11 +80,11 @@ export function useData(): DataContextValue {
 
 /* ============ PROVIDER ============ */
 const STORAGE_LANG = "amd_lang";
-const STORAGE_EMPLOYEES = "amd_employees_v4";
-const STORAGE_ADJ = "amd_payroll_adj_v1";
-const STORAGE_LEAVES = "amd_leaves_v1";
-const STORAGE_LATE = "amd_late_v1";
-const STORAGE_ACTIVITIES = "amd_activities_v1";
+const STORAGE_EMPLOYEES = "amd_employees_v6";
+const STORAGE_ADJ = "amd_payroll_adj_v2";
+const STORAGE_LEAVES = "amd_leaves_v2";
+const STORAGE_LATE = "amd_late_v2";
+const STORAGE_ACTIVITIES = "amd_activities_v2";
 
 function adjKey(empId: string, year: number, month: number): string {
   return `${empId}-${year}-${month}`;
@@ -106,35 +105,11 @@ export function Providers({ children }: { children: ReactNode }) {
       const storedLang = localStorage.getItem(STORAGE_LANG);
       if (storedLang === "ar" || storedLang === "en") setLangState(storedLang);
 
+      // Start empty by default. Real data comes from the user
+      // entering it through the UI (and, eventually, the Neon API).
       const storedEmps = localStorage.getItem(STORAGE_EMPLOYEES);
-      let employeesToUse: Employee[];
-      let isFreshSeed = false;
       if (storedEmps) {
-        employeesToUse = JSON.parse(storedEmps);
-        setEmployees(employeesToUse);
-      } else {
-        employeesToUse = buildSeedEmployees();
-        setEmployees(employeesToUse);
-        localStorage.setItem(STORAGE_EMPLOYEES, JSON.stringify(employeesToUse));
-        isFreshSeed = true;
-      }
-
-      // Seed activities only on a fresh seed and only if activities are empty.
-      if (isFreshSeed && !localStorage.getItem(STORAGE_ACTIVITIES)) {
-        const seededActs: EmployeeActivity[] = employeesToUse.map((emp) => ({
-          id: `ACT-seed-${emp.id}`,
-          empId: emp.id,
-          type: "hired",
-          date: emp.hiringDate,
-          title: "Employee hired",
-          description: `Joined as ${emp.title_en} in ${emp.department}`,
-          createdAt: new Date(emp.hiringDate).toISOString(),
-        }));
-        setActivities(seededActs);
-        localStorage.setItem(
-          STORAGE_ACTIVITIES,
-          JSON.stringify(seededActs)
-        );
+        setEmployees(JSON.parse(storedEmps));
       }
 
       const storedAdj = localStorage.getItem(STORAGE_ADJ);

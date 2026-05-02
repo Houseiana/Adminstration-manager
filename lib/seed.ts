@@ -235,6 +235,15 @@ export function buildSeedEmployees(): Employee[] {
         LAST_EN[(li + 1) % LAST_EN.length]
       }`,
       salary,
+      allowances: Math.round((salary * 0.10) / 100) * 100,
+      commission: Math.round((salary * 0.05) / 100) * 100,
+      raise: r() < 0.4 ? Math.round((salary * 0.08) / 100) * 100 : 0,
+      raiseDate:
+        r() < 0.4
+          ? `${hireYear + 1}-${String(hireMonth).padStart(2, "0")}-${String(
+              hireDay
+            ).padStart(2, "0")}`
+          : undefined,
       paymentMethod: "bank",
       bankAccount: `EG${String(Math.floor(r() * 9e15) + 1e15)}`,
       status: statuses[i % statuses.length],

@@ -6,6 +6,7 @@ import { useData, useLang } from "./Providers";
 import { useToast } from "./Toast";
 import { ALL_DEPARTMENTS, TITLES_BY_DEPT, titleAr } from "@/lib/seed";
 import { Avatar, fileToResizedDataUrl } from "./Avatar";
+import { money } from "@/lib/i18n";
 import type { Employee } from "@/lib/types";
 
 interface Props {
@@ -20,6 +21,10 @@ const EMPTY: Omit<Employee, "id"> = {
   title_en: "Sales Manager",
   title_ar: "مدير مبيعات",
   photoUrl: undefined,
+  allowances: 0,
+  commission: 0,
+  raise: 0,
+  raiseDate: undefined,
   department: "Sales",
   phone: "",
   email: "",
@@ -67,6 +72,10 @@ export function EmployeeModal({ open, onClose, employee }: Props) {
       name_ar: form.name_ar || form.name_en,
       title_ar: form.title_ar || form.title_en,
       salary: Number(form.salary) || 0,
+      allowances: Number(form.allowances) || 0,
+      commission: Number(form.commission) || 0,
+      raise: Number(form.raise) || 0,
+      raiseDate: form.raiseDate || undefined,
       childrenCount:
         form.maritalStatus === "single" ? 0 : Number(form.childrenCount) || 0,
     };
@@ -335,6 +344,46 @@ export function EmployeeModal({ open, onClose, employee }: Props) {
               required
             />
           </Field>
+          <Field label={`${t("allowances")} (${t("currency")})`}>
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={form.allowances ?? 0}
+              onChange={(e) => set("allowances", Number(e.target.value))}
+            />
+          </Field>
+          <Field label={`${t("commission")} (${t("currency")})`}>
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={form.commission ?? 0}
+              onChange={(e) => set("commission", Number(e.target.value))}
+            />
+          </Field>
+          <Field label={`${t("raise_amount")} (${t("currency")})`}>
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={form.raise ?? 0}
+              onChange={(e) => set("raise", Number(e.target.value))}
+            />
+          </Field>
+          <Field label={t("raise_date")}>
+            <input
+              type="date"
+              value={form.raiseDate ?? ""}
+              onChange={(e) => set("raiseDate", e.target.value || undefined)}
+            />
+          </Field>
+          <TotalSummary
+            base={form.salary}
+            allowances={form.allowances ?? 0}
+            commission={form.commission ?? 0}
+            raise={form.raise ?? 0}
+          />
           <Field label={t("payment_method")}>
             <select
               value={form.paymentMethod}
@@ -395,6 +444,35 @@ function Field({
     <div className={`field ${className}`}>
       <label>{label}</label>
       {children}
+    </div>
+  );
+}
+
+function TotalSummary({
+  base,
+  allowances,
+  commission,
+  raise,
+}: {
+  base: number;
+  allowances: number;
+  commission: number;
+  raise: number;
+}) {
+  const { t, lang } = useLang();
+  const total =
+    (Number(base) || 0) +
+    (Number(allowances) || 0) +
+    (Number(commission) || 0) +
+    (Number(raise) || 0);
+  return (
+    <div className="sm:col-span-2 bg-accent-soft border border-amber-300 rounded-[12px] p-3 flex items-center justify-between">
+      <div className="text-[12px] text-amber-900 font-semibold uppercase tracking-wider">
+        {t("total_compensation")}
+      </div>
+      <div className="text-[20px] font-extrabold mono text-ink">
+        {money(total, lang)}
+      </div>
     </div>
   );
 }
