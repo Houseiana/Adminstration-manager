@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { useData } from "./Providers";
@@ -8,6 +9,12 @@ import { useData } from "./Providers";
 export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { ready } = useData();
+  const pathname = usePathname();
+
+  // Bare layout for the login page — no sidebar / topbar.
+  if (pathname === "/login") {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-screen">

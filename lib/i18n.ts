@@ -314,6 +314,17 @@ export const I18N = {
     change_photo: "Change Photo",
     remove_photo: "Remove",
     photo_hint: "JPG / PNG, auto-resized to 320×320 px.",
+    // Auth
+    sign_in: "Sign in",
+    signing_in: "Signing in…",
+    welcome_back: "Welcome back",
+    please_sign_in: "Sign in to continue to your dashboard.",
+    username: "Username",
+    password: "Password",
+    invalid_credentials: "Invalid username or password.",
+    network_error: "Network error. Please try again.",
+    sign_out: "Sign out",
+    logged_in_as: "Signed in as",
   },
   ar: {
     brand: "المدير الإداري",
@@ -626,6 +637,17 @@ export const I18N = {
     change_photo: "تغيير الصورة",
     remove_photo: "إزالة",
     photo_hint: "JPG / PNG، يتم ضبط الحجم تلقائياً إلى ٣٢٠×٣٢٠ بكسل.",
+    // Auth
+    sign_in: "تسجيل الدخول",
+    signing_in: "جارٍ تسجيل الدخول…",
+    welcome_back: "أهلاً بعودتك",
+    please_sign_in: "سجّل الدخول للوصول إلى لوحة التحكم.",
+    username: "اسم المستخدم",
+    password: "كلمة المرور",
+    invalid_credentials: "اسم المستخدم أو كلمة المرور غير صحيحة.",
+    network_error: "خطأ في الشبكة. حاول مرة أخرى.",
+    sign_out: "تسجيل خروج",
+    logged_in_as: "مسجّل الدخول باسم",
   },
 } as const;
 

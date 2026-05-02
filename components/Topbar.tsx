@@ -1,11 +1,19 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useLang } from "./Providers";
 import type { I18NKey } from "@/lib/i18n";
 
 interface TopbarProps {
   onMenu: () => void;
+}
+
+interface CurrentUser {
+  userId: string;
+  username: string;
+  name: string;
+  role: string;
 }
 
 const ROUTE_CRUMBS: Record<string, I18NKey[]> = {
@@ -23,6 +31,25 @@ const ROUTE_CRUMBS: Record<string, I18NKey[]> = {
 export function Topbar({ onMenu }: TopbarProps) {
   const { t, lang, setLang } = useLang();
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<CurrentUser | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { user: null }))
+      .then((d) => setUser(d.user))
+      .catch(() => setUser(null));
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    router.push("/login");
+    router.refresh();
+  };
+
+  const initial = user?.name?.charAt(0).toUpperCase() ?? "?";
 
   let crumbs: I18NKey[] = ROUTE_CRUMBS[pathname] || ["nav_dashboard"];
   if (pathname.startsWith("/employees/") && pathname !== "/employees") {
@@ -115,13 +142,37 @@ export function Topbar({ onMenu }: TopbarProps) {
 
       <div className="hidden sm:flex items-center gap-2.5 bg-slate-100 rounded-full pe-3 ps-1 py-1">
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent-strong grid place-items-center font-bold text-ink">
-          M
+          {initial}
         </div>
         <div className="leading-tight">
-          <div className="font-semibold text-[13px]">Mo Saiyed</div>
-          <div className="text-[11px] text-muted">{t("role_admin")}</div>
+          <div className="font-semibold text-[13px]">
+            {user?.name ?? "—"}
+          </div>
+          <div className="text-[11px] text-muted">
+            {user?.username ?? t("role_admin")}
+          </div>
         </div>
       </div>
+
+      <button
+        onClick={handleSignOut}
+        title={t("sign_out")}
+        aria-label={t("sign_out")}
+        className="w-9 h-9 rounded-[10px] grid place-items-center text-muted hover:bg-slate-100 hover:text-red-600 transition"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+      </button>
     </header>
   );
 }
