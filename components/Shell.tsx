@@ -21,7 +21,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <Sidebar open={open} onClose={() => setOpen(false)} />
       <main className="flex flex-col min-w-0 flex-1">
         <Topbar onMenu={() => setOpen((v) => !v)} />
-        <div className="p-6 max-w-[1600px] w-full mx-auto flex-1">
+        <div className="p-3 sm:p-4 lg:p-6 max-w-[1600px] w-full mx-auto flex-1">
           {ready ? children : <div className="text-muted text-sm">Loading…</div>}
         </div>
       </main>

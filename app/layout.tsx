@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Cairo } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { ToastProvider } from "@/components/Toast";
@@ -20,6 +20,13 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   title: "Admin Manager Dashboard",
   description: "Bilingual HR & Payroll admin dashboard",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#facc15",
 };
 
 export default function RootLayout({

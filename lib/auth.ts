@@ -34,13 +34,25 @@ function base64UrlEncode(input: string | ArrayBuffer): string {
     .replace(/=+$/, "");
 }
 
-function base64UrlDecode(input: string): Uint8Array {
+// Decode base64url into a fresh standalone ArrayBuffer (not a
+// Uint8Array view) so crypto.subtle reliably accepts it across
+// Node and the Edge middleware sandbox.
+function base64UrlDecodeBuf(input: string): ArrayBuffer {
   let str = input.replace(/-/g, "+").replace(/_/g, "/");
   while (str.length % 4) str += "=";
   const binary = atob(str);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-  return out;
+  const ab = new ArrayBuffer(binary.length);
+  const u8 = new Uint8Array(ab);
+  for (let i = 0; i < binary.length; i++) u8[i] = binary.charCodeAt(i);
+  return ab;
+}
+
+// Encode a string into a fresh standalone ArrayBuffer.
+function encodeStr(s: string): ArrayBuffer {
+  const bytes = new TextEncoder().encode(s);
+  const ab = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(ab).set(bytes);
+  return ab;
 }
 
 let cachedKey: CryptoKey | null = null;
@@ -76,11 +88,7 @@ export async function createSessionToken(
   const data = `${headerB64}.${payloadB64}`;
 
   const key = await getKey();
-  const sig = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode(data)
-  );
+  const sig = await crypto.subtle.sign("HMAC", key, encodeStr(data));
   const sigB64 = base64UrlEncode(sig);
   return `${data}.${sigB64}`;
 }
@@ -93,23 +101,22 @@ export async function verifySessionToken(
   const data = `${headerB64}.${payloadB64}`;
 
   const key = await getKey();
-  const sigBytes = base64UrlDecode(sigB64);
-  // Copy into a fresh ArrayBuffer to satisfy strict BufferSource typing.
-  const sigBuf = sigBytes.buffer.slice(
-    sigBytes.byteOffset,
-    sigBytes.byteOffset + sigBytes.byteLength
-  ) as ArrayBuffer;
-  const valid = await crypto.subtle.verify(
-    "HMAC",
-    key,
-    sigBuf,
-    new TextEncoder().encode(data)
-  );
+  // Edge dev sandbox is picky: build inputs inline using TypedArrays
+  // (Uint8Array) which crypto.subtle accepts as BufferSource.
+  let str = sigB64.replace(/-/g, "+").replace(/_/g, "/");
+  while (str.length % 4) str += "=";
+  const binary = atob(str);
+  const sig = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) sig[i] = binary.charCodeAt(i);
+
+  const dataBytes = new TextEncoder().encode(data);
+
+  const valid = await crypto.subtle.verify("HMAC", key, sig, dataBytes);
   if (!valid) return null;
 
   let parsed: unknown;
   try {
-    const json = new TextDecoder().decode(base64UrlDecode(payloadB64));
+    const json = new TextDecoder().decode(base64UrlDecodeBuf(payloadB64));
     parsed = JSON.parse(json);
   } catch {
     return null;

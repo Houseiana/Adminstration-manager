@@ -142,6 +142,53 @@ html[dir="ltr"] body {
   }
 }
 
+/* Smooth horizontal scrolling for wide tables on touch */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile tweaks */
+@media (max-width: 640px) {
+  /* Denser tables so more columns are readable */
+  table thead th {
+    padding: 0.5rem 0.625rem !important;
+    font-size: 10px !important;
+  }
+  table tbody td {
+    padding: 0.625rem 0.625rem !important;
+    font-size: 12.5px !important;
+  }
+
+  /* Form inputs feel cramped at default size; bump to comfortable */
+  .field input,
+  .field select,
+  .field textarea {
+    font-size: 15px;
+    padding: 0.625rem 0.75rem;
+  }
+
+  /* Form section grids inside modals — single column on phones */
+  form#empForm,
+  form#adjForm,
+  form#leaveForm,
+  form#lateForm,
+  form#activityForm {
+    padding: 0.875rem !important;
+  }
+
+  /* Stat tiles a bit tighter */
+  .stat {
+    padding: 0.875rem;
+  }
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .stat-value {
+    font-size: 18px;
+  }
+}
+
 /* Print */
 @media print {
   .no-print,

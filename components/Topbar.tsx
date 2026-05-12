@@ -57,7 +57,7 @@ export function Topbar({ onMenu }: TopbarProps) {
   }
 
   return (
-    <header className="topbar h-16 bg-surface border-b border-line flex items-center px-6 gap-4 sticky top-0 z-50">
+    <header className="topbar h-16 bg-surface border-b border-line flex items-center px-3 sm:px-6 gap-2 sm:gap-3 sticky top-0 z-50">
       <button
         onClick={onMenu}
         aria-label="Menu"
@@ -77,15 +77,26 @@ export function Topbar({ onMenu }: TopbarProps) {
         </svg>
       </button>
 
-      <div className="flex items-center gap-2 text-muted text-[13px] font-medium min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 text-muted text-[12px] sm:text-[13px] font-medium min-w-0 overflow-hidden">
         {crumbs.map((c, i) => {
           const isLast = i === crumbs.length - 1;
+          // On mobile, only show the last segment to save space.
+          const hiddenOnMobile = !isLast ? "hidden sm:flex" : "flex";
           return (
-            <span key={c + i} className="flex items-center gap-2 truncate">
-              <span className={isLast ? "text-ink font-semibold truncate" : "truncate"}>
+            <span
+              key={c + i}
+              className={`${hiddenOnMobile} items-center gap-1.5 sm:gap-2 truncate min-w-0`}
+            >
+              <span
+                className={`${
+                  isLast ? "text-ink font-semibold" : ""
+                } truncate`}
+              >
                 {t(c)}
               </span>
-              {!isLast && <span className="text-line-strong">/</span>}
+              {!isLast && (
+                <span className="text-line-strong shrink-0">/</span>
+              )}
             </span>
           );
         })}
@@ -115,7 +126,7 @@ export function Topbar({ onMenu }: TopbarProps) {
 
       <button
         onClick={() => setLang(lang === "en" ? "ar" : "en")}
-        className="flex items-center gap-1.5 bg-ink text-white px-2.5 py-1.5 rounded-[10px] font-semibold text-[12px]"
+        className="flex items-center gap-1 bg-ink text-white px-2 sm:px-2.5 py-1.5 rounded-[10px] font-semibold text-[12px] shrink-0"
         aria-label="Switch language"
       >
         <span className="text-accent">{lang === "en" ? "EN" : "ع"}</span>
@@ -125,7 +136,7 @@ export function Topbar({ onMenu }: TopbarProps) {
 
       <button
         aria-label="Notifications"
-        className="w-9 h-9 rounded-[10px] grid place-items-center text-muted hover:bg-slate-100 hover:text-ink transition"
+        className="hidden sm:grid w-9 h-9 rounded-[10px] place-items-center text-muted hover:bg-slate-100 hover:text-ink transition shrink-0"
       >
         <svg
           width="18"
@@ -140,15 +151,23 @@ export function Topbar({ onMenu }: TopbarProps) {
         </svg>
       </button>
 
-      <div className="hidden sm:flex items-center gap-2.5 bg-slate-100 rounded-full pe-3 ps-1 py-1">
+      {/* Mobile: bare avatar */}
+      <div
+        className="md:hidden w-9 h-9 rounded-full bg-gradient-to-br from-accent to-accent-strong grid place-items-center font-bold text-ink shrink-0"
+        title={user?.name ?? ""}
+      >
+        {initial}
+      </div>
+      {/* md+: full user chip */}
+      <div className="hidden md:flex items-center gap-2.5 bg-slate-100 rounded-full pe-3 ps-1 py-1 shrink-0">
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent-strong grid place-items-center font-bold text-ink">
           {initial}
         </div>
-        <div className="leading-tight">
-          <div className="font-semibold text-[13px]">
+        <div className="leading-tight pe-1">
+          <div className="font-semibold text-[13px] truncate max-w-[140px]">
             {user?.name ?? "—"}
           </div>
-          <div className="text-[11px] text-muted">
+          <div className="text-[11px] text-muted truncate max-w-[140px]">
             {user?.username ?? t("role_admin")}
           </div>
         </div>
@@ -158,7 +177,7 @@ export function Topbar({ onMenu }: TopbarProps) {
         onClick={handleSignOut}
         title={t("sign_out")}
         aria-label={t("sign_out")}
-        className="w-9 h-9 rounded-[10px] grid place-items-center text-muted hover:bg-slate-100 hover:text-red-600 transition"
+        className="w-9 h-9 rounded-[10px] grid place-items-center text-muted hover:bg-slate-100 hover:text-red-600 transition shrink-0"
       >
         <svg
           width="18"
