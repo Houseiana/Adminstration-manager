@@ -8,6 +8,7 @@ import type {
 } from "./types";
 
 const DEPARTMENTS: Department[] = [
+  "Executive Management",
   "Administration",
   "Sales",
   "Data Entry",
@@ -20,6 +21,7 @@ const DEPARTMENTS: Department[] = [
 ];
 
 export const TITLES_BY_DEPT: Record<Department, string[]> = {
+  "Executive Management": ["Executive Manager"],
   Administration: ["Admin Manager"],
   Sales: [
     "Sales Manager",
@@ -39,7 +41,6 @@ export const TITLES_BY_DEPT: Record<Department, string[]> = {
   Secretariat: ["Secretary"],
   "Public Relations": ["PR Specialist", "Business Developer"],
   Finance: [
-    "Executive Manager",
     "Financial Manager",
     "Accounts Supervisor",
     "Senior Accountant",

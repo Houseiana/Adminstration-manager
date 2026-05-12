@@ -12,6 +12,7 @@ export type ContractType =
 
 export type Department =
   | "Administration"
+  | "Executive Management"
   | "Sales"
   | "Data Entry"
   | "Operations"
