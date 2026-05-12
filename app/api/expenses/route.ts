@@ -6,7 +6,12 @@ import type { ExpenseEntry } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const EXP_COLUMNS = `id, category, year, month, amount, notes, created_at, updated_at`;
+const EXP_COLUMNS = `
+  id, category, year, month, amount,
+  vendor_name, authorized_by, expense_date,
+  invoice_number, has_invoice, no_invoice_reason,
+  notes, created_at, updated_at
+`;
 
 export async function GET() {
   const auth = await requireSession();
@@ -15,7 +20,7 @@ export async function GET() {
   return withDb(async (c) => {
     const { rows } = await c.query(
       `SELECT ${EXP_COLUMNS} FROM expenses
-       ORDER BY year DESC, month DESC, created_at DESC`
+       ORDER BY year DESC, month DESC, COALESCE(expense_date, make_date(year, month + 1, 1)) DESC, created_at DESC`
     );
     return NextResponse.json({ expenses: rows.map(toExpense) });
   });
@@ -47,11 +52,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "amount must be >= 0" }, { status: 400 });
   }
 
+  const hasInvoice = body.hasInvoice !== false;
   return withDb(async (c) => {
     const { rows } = await c.query(
-      `INSERT INTO expenses (category, year, month, amount, notes)
-       VALUES ($1, $2, $3, $4, $5) RETURNING ${EXP_COLUMNS}`,
-      [category, body.year, body.month, amount, body.notes ?? null]
+      `INSERT INTO expenses (
+         category, year, month, amount,
+         vendor_name, authorized_by, expense_date,
+         invoice_number, has_invoice, no_invoice_reason,
+         notes
+       ) VALUES (
+         $1, $2, $3, $4,
+         $5, $6, $7,
+         $8, $9, $10,
+         $11
+       ) RETURNING ${EXP_COLUMNS}`,
+      [
+        category,
+        body.year,
+        body.month,
+        amount,
+        body.vendorName?.trim() || null,
+        body.authorizedBy?.trim() || null,
+        body.expenseDate || null,
+        hasInvoice ? body.invoiceNumber?.trim() || null : null,
+        hasInvoice,
+        !hasInvoice ? body.noInvoiceReason?.trim() || null : null,
+        body.notes?.trim() || null,
+      ]
     );
     return NextResponse.json({ expense: toExpense(rows[0]) }, { status: 201 });
   });

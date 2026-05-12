@@ -359,12 +359,11 @@ function ListView({
   onEdit: (e: ExpenseEntry) => void;
   onDelete: (id: string) => void;
 }) {
+  const tt = t as (k: string) => string;
   if (rows.length === 0) {
     return (
       <div className="card">
-        <div className="card-body empty">
-          {(t as (k: string) => string)("no_expenses")}
-        </div>
+        <div className="card-body empty">{tt("no_expenses")}</div>
       </div>
     );
   }
@@ -374,52 +373,88 @@ function ListView({
         <table className="w-full text-[13px]">
           <thead>
             <tr className="bg-slate-50">
-              <Th>{(t as (k: string) => string)("expense_category")}</Th>
-              <Th>{(t as (k: string) => string)("expense_month")}</Th>
-              <Th>{(t as (k: string) => string)("expense_amount")}</Th>
-              <Th>{(t as (k: string) => string)("expense_notes")}</Th>
-              <Th className="text-end">
-                {(t as (k: string) => string)("c_actions")}
-              </Th>
+              <Th>{tt("col_date")}</Th>
+              <Th>{tt("expense_category")}</Th>
+              <Th>{tt("col_vendor")}</Th>
+              <Th>{tt("col_invoice")}</Th>
+              <Th>{tt("expense_amount")}</Th>
+              <Th>{tt("col_authorized")}</Th>
+              <Th>{tt("expense_notes")}</Th>
+              <Th className="text-end">{tt("c_actions")}</Th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((e) => (
-              <tr key={e.id} className="hover:bg-slate-50">
-                <Td className="font-semibold">{e.category}</Td>
-                <Td>
-                  {months[e.month]} {e.year}
-                </Td>
-                <Td className="mono font-bold">{money(e.amount, lang as "en" | "ar")}</Td>
-                <Td className="text-muted max-w-[280px] truncate">
-                  {e.notes ?? "—"}
-                </Td>
-                <Td className="text-end">
-                  <div className="inline-flex gap-1">
-                    <button
-                      onClick={() => onEdit(e)}
-                      title={(t as (k: string) => string)("edit")}
-                      className="btn btn-icon btn-soft"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => onDelete(e.id)}
-                      title={(t as (k: string) => string)("delete")}
-                      className="btn btn-icon btn-danger"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                    </button>
-                  </div>
-                </Td>
-              </tr>
-            ))}
+            {rows.map((e) => {
+              const displayDate =
+                e.expenseDate || `${e.year}-${String(e.month + 1).padStart(2, "0")}`;
+              return (
+                <tr key={e.id} className="hover:bg-slate-50">
+                  <Td className="mono whitespace-nowrap">
+                    <div>{displayDate}</div>
+                    <div className="text-[10px] text-muted">
+                      {months[e.month]} {e.year}
+                    </div>
+                  </Td>
+                  <Td className="font-semibold">{e.category}</Td>
+                  <Td>{e.vendorName || "—"}</Td>
+                  <Td>
+                    {e.hasInvoice ? (
+                      e.invoiceNumber ? (
+                        <span className="mono text-[12px]">
+                          {e.invoiceNumber}
+                        </span>
+                      ) : (
+                        <span className="badge badge-green">
+                          {tt("has_invoice")}
+                        </span>
+                      )
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <span className="badge badge-red">
+                          {tt("no_invoice")}
+                        </span>
+                        {e.noInvoiceReason && (
+                          <span className="text-[11px] text-muted max-w-[180px] truncate">
+                            {e.noInvoiceReason}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </Td>
+                  <Td className="mono font-bold whitespace-nowrap">
+                    {money(e.amount, lang as "en" | "ar")}
+                  </Td>
+                  <Td className="text-[12px]">{e.authorizedBy || "—"}</Td>
+                  <Td className="text-muted text-[12px] max-w-[200px] truncate">
+                    {e.notes ?? "—"}
+                  </Td>
+                  <Td className="text-end">
+                    <div className="inline-flex gap-1">
+                      <button
+                        onClick={() => onEdit(e)}
+                        title={tt("edit")}
+                        className="btn btn-icon btn-soft"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => onDelete(e.id)}
+                        title={tt("delete")}
+                        className="btn btn-icon btn-danger"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </Td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

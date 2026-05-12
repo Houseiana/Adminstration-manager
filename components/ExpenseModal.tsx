@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { Modal } from "./Modal";
 import { useData, useLang } from "./Providers";
 import { useToast } from "./Toast";
@@ -15,6 +15,7 @@ interface Props {
 }
 
 const TODAY = new Date();
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function ExpenseModal({
   open,
@@ -28,15 +29,30 @@ export function ExpenseModal({
   const { show: toast } = useToast();
 
   const [category, setCategory] = useState("");
-  const [year, setYear] = useState(TODAY.getFullYear());
-  const [month, setMonth] = useState(TODAY.getMonth());
   const [amount, setAmount] = useState(0);
+  const [expenseDate, setExpenseDate] = useState(todayISO());
+  const [vendorName, setVendorName] = useState("");
+  const [authorizedBy, setAuthorizedBy] = useState("");
+  const [hasInvoice, setHasInvoice] = useState(true);
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [noInvoiceReason, setNoInvoiceReason] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Build a list of known categories so the user can quickly reuse them.
   const knownCategories = useMemo(() => {
     const set = new Set<string>();
     for (const e of expenses) set.add(e.category);
+    return Array.from(set).sort();
+  }, [expenses]);
+
+  const knownVendors = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of expenses) if (e.vendorName) set.add(e.vendorName);
+    return Array.from(set).sort();
+  }, [expenses]);
+
+  const knownApprovers = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of expenses) if (e.authorizedBy) set.add(e.authorizedBy);
     return Array.from(set).sort();
   }, [expenses]);
 
@@ -44,15 +60,30 @@ export function ExpenseModal({
     if (!open) return;
     if (expense) {
       setCategory(expense.category);
-      setYear(expense.year);
-      setMonth(expense.month);
       setAmount(expense.amount);
+      setExpenseDate(
+        expense.expenseDate ||
+          `${expense.year}-${String(expense.month + 1).padStart(2, "0")}-01`
+      );
+      setVendorName(expense.vendorName ?? "");
+      setAuthorizedBy(expense.authorizedBy ?? "");
+      setHasInvoice(expense.hasInvoice);
+      setInvoiceNumber(expense.invoiceNumber ?? "");
+      setNoInvoiceReason(expense.noInvoiceReason ?? "");
       setNotes(expense.notes ?? "");
     } else {
       setCategory("");
-      setYear(defaultYear ?? TODAY.getFullYear());
-      setMonth(defaultMonth ?? TODAY.getMonth());
       setAmount(0);
+      const initialDate =
+        defaultYear !== undefined && defaultMonth !== undefined
+          ? `${defaultYear}-${String(defaultMonth + 1).padStart(2, "0")}-01`
+          : todayISO();
+      setExpenseDate(initialDate);
+      setVendorName("");
+      setAuthorizedBy("");
+      setHasInvoice(true);
+      setInvoiceNumber("");
+      setNoInvoiceReason("");
       setNotes("");
     }
   }, [open, expense, defaultYear, defaultMonth]);
@@ -60,11 +91,20 @@ export function ExpenseModal({
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!category.trim() || amount < 0) return;
-    const data = {
+    const date = new Date(expenseDate);
+    const data: Omit<ExpenseEntry, "id" | "createdAt"> = {
       category: category.trim(),
-      year: Number(year),
-      month: Number(month),
+      year: date.getFullYear(),
+      month: date.getMonth(),
       amount: Number(amount) || 0,
+      expenseDate,
+      vendorName: vendorName.trim() || undefined,
+      authorizedBy: authorizedBy.trim() || undefined,
+      hasInvoice,
+      invoiceNumber: hasInvoice ? invoiceNumber.trim() || undefined : undefined,
+      noInvoiceReason: !hasInvoice
+        ? noInvoiceReason.trim() || undefined
+        : undefined,
       notes: notes.trim() || undefined,
     };
     const p = expense
@@ -73,17 +113,12 @@ export function ExpenseModal({
     p.then(() => onClose()).catch((err) => alert(err?.message ?? "Error"));
   };
 
-  const yearOptions = useMemo(() => {
-    const cur = TODAY.getFullYear();
-    return Array.from({ length: 5 }, (_, i) => cur - 2 + i);
-  }, []);
-
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={expense ? t("edit_expense") : t("add_expense")}
-      maxWidth="max-w-[520px]"
+      maxWidth="max-w-[680px]"
       footer={
         <>
           <button type="button" onClick={onClose} className="btn btn-ghost">
@@ -95,69 +130,157 @@ export function ExpenseModal({
         </>
       }
     >
-      <form
-        id="expenseForm"
-        onSubmit={handleSubmit}
-        className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-5"
-      >
-        <div className="field sm:col-span-2">
-          <label>{t("expense_category")}</label>
-          <input
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            list="expense-categories"
-            required
-            autoFocus
-          />
-          <datalist id="expense-categories">
-            {knownCategories.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </div>
-        <div className="field">
-          <label>{t("expense_month")}</label>
-          <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-            {months.map((m, i) => (
-              <option key={m} value={i}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label>{t("expense_year")}</label>
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field sm:col-span-2">
-          <label>
-            {t("expense_amount")} ({t("currency")})
-          </label>
-          <input
-            type="number"
-            min={0}
-            step={50}
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            required
-          />
-        </div>
-        <div className="field sm:col-span-2">
-          <label>{t("expense_notes")}</label>
-          <textarea
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
+      <form id="expenseForm" onSubmit={handleSubmit} className="p-4 sm:p-5">
+        {/* ============ EXPENSE DETAILS ============ */}
+        <Section icon="💰" title={t("section_expense_details")}>
+          <Field className="sm:col-span-2" label={t("expense_category")}>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              list="expense-categories"
+              required
+              autoFocus
+            />
+            <datalist id="expense-categories">
+              {knownCategories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label={`${t("expense_amount")} (${t("currency")})`}>
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              required
+            />
+          </Field>
+          <Field label={t("expense_date_full")}>
+            <input
+              type="date"
+              value={expenseDate}
+              onChange={(e) => setExpenseDate(e.target.value)}
+              required
+            />
+            <div className="text-[11px] text-muted mt-0.5">
+              {months[new Date(expenseDate).getMonth()]}{" "}
+              {new Date(expenseDate).getFullYear()}
+            </div>
+          </Field>
+        </Section>
+
+        {/* ============ VENDOR & INVOICE ============ */}
+        <Section icon="🧾" title={t("section_invoice")}>
+          <Field className="sm:col-span-2" label={t("vendor_name")}>
+            <input
+              type="text"
+              value={vendorName}
+              onChange={(e) => setVendorName(e.target.value)}
+              list="expense-vendors"
+            />
+            <datalist id="expense-vendors">
+              {knownVendors.map((v) => (
+                <option key={v} value={v} />
+              ))}
+            </datalist>
+          </Field>
+          <div className="sm:col-span-2 bg-slate-50 border border-line rounded-[10px] p-3">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hasInvoice}
+                onChange={(e) => setHasInvoice(e.target.checked)}
+              />
+              <span className="font-semibold text-[13px]">
+                {t("invoice_required_label")}
+              </span>
+            </label>
+          </div>
+          {hasInvoice ? (
+            <Field className="sm:col-span-2" label={t("invoice_number")}>
+              <input
+                type="text"
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                placeholder="INV-..."
+              />
+            </Field>
+          ) : (
+            <Field className="sm:col-span-2" label={t("no_invoice_reason")}>
+              <textarea
+                rows={2}
+                value={noInvoiceReason}
+                onChange={(e) => setNoInvoiceReason(e.target.value)}
+                required
+              />
+            </Field>
+          )}
+        </Section>
+
+        {/* ============ APPROVAL & NOTES ============ */}
+        <Section icon="✅" title={t("section_approval")}>
+          <Field className="sm:col-span-2" label={t("authorized_by")}>
+            <input
+              type="text"
+              value={authorizedBy}
+              onChange={(e) => setAuthorizedBy(e.target.value)}
+              list="expense-approvers"
+            />
+            <datalist id="expense-approvers">
+              {knownApprovers.map((a) => (
+                <option key={a} value={a} />
+              ))}
+            </datalist>
+          </Field>
+          <Field className="sm:col-span-2" label={t("expense_notes")}>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+        </Section>
       </form>
     </Modal>
+  );
+}
+
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <fieldset className="border border-line rounded-[12px] p-4 mb-3">
+      <legend className="px-2 flex items-center gap-2 text-[12px] font-bold text-ink uppercase tracking-wider">
+        <span className="text-base">{icon}</span>
+        {title}
+      </legend>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
+    </fieldset>
+  );
+}
+
+function Field({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`field ${className}`}>
+      <label>{label}</label>
+      {children}
+    </div>
   );
 }

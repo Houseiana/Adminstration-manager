@@ -141,6 +141,15 @@ export function toExpense(row: Row): ExpenseEntry {
     year: Number(row.year),
     month: Number(row.month),
     amount: num(row.amount, 0),
+    vendorName: str(row.vendor_name),
+    authorizedBy: str(row.authorized_by),
+    expenseDate: str(row.expense_date),
+    invoiceNumber: str(row.invoice_number),
+    hasInvoice:
+      row.has_invoice === null || row.has_invoice === undefined
+        ? true
+        : Boolean(row.has_invoice),
+    noInvoiceReason: str(row.no_invoice_reason),
     notes: str(row.notes),
     createdAt:
       row.created_at instanceof Date

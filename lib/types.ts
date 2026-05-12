@@ -126,6 +126,12 @@ export interface ExpenseEntry {
   year: number;
   month: number;
   amount: number;
+  vendorName?: string;
+  authorizedBy?: string;
+  expenseDate?: string;
+  invoiceNumber?: string;
+  hasInvoice: boolean;
+  noInvoiceReason?: string;
   notes?: string;
   createdAt: string;
 }

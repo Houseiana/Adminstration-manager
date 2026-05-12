@@ -6,7 +6,12 @@ import type { ExpenseEntry } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const EXP_COLUMNS = `id, category, year, month, amount, notes, created_at, updated_at`;
+const EXP_COLUMNS = `
+  id, category, year, month, amount,
+  vendor_name, authorized_by, expense_date,
+  invoice_number, has_invoice, no_invoice_reason,
+  notes, created_at, updated_at
+`;
 
 interface Ctx {
   params: Promise<{ id: string }>;
@@ -33,9 +38,15 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     const o = toExpense(old[0]);
+    const hasInvoice =
+      body.hasInvoice === undefined ? o.hasInvoice : body.hasInvoice !== false;
+
     const { rows } = await c.query(
       `UPDATE expenses SET
-        category = $2, year = $3, month = $4, amount = $5, notes = $6
+         category = $2, year = $3, month = $4, amount = $5,
+         vendor_name = $6, authorized_by = $7, expense_date = $8,
+         invoice_number = $9, has_invoice = $10, no_invoice_reason = $11,
+         notes = $12
        WHERE id = $1 RETURNING ${EXP_COLUMNS}`,
       [
         id,
@@ -43,7 +54,27 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
         body.year ?? o.year,
         body.month ?? o.month,
         body.amount === undefined ? o.amount : Number(body.amount),
-        body.notes === undefined ? o.notes : body.notes,
+        body.vendorName === undefined
+          ? o.vendorName ?? null
+          : body.vendorName?.trim() || null,
+        body.authorizedBy === undefined
+          ? o.authorizedBy ?? null
+          : body.authorizedBy?.trim() || null,
+        body.expenseDate === undefined
+          ? o.expenseDate ?? null
+          : body.expenseDate || null,
+        hasInvoice
+          ? body.invoiceNumber === undefined
+            ? o.invoiceNumber ?? null
+            : body.invoiceNumber?.trim() || null
+          : null,
+        hasInvoice,
+        !hasInvoice
+          ? body.noInvoiceReason === undefined
+            ? o.noInvoiceReason ?? null
+            : body.noInvoiceReason?.trim() || null
+          : null,
+        body.notes === undefined ? o.notes ?? null : body.notes?.trim() || null,
       ]
     );
     return NextResponse.json({ expense: toExpense(rows[0]) });
