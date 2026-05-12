@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
-
-function isPublic(pathname: string): boolean {
-  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
-}
-
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // API routes always handle their own auth and return JSON. Skipping
+  // here prevents the redirect-to-/login behavior from corrupting
+  // fetch() responses with HTML.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
 
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
@@ -18,10 +19,6 @@ export async function middleware(req: NextRequest) {
     if (session) {
       return NextResponse.redirect(new URL("/", req.url));
     }
-    return NextResponse.next();
-  }
-
-  if (isPublic(pathname)) {
     return NextResponse.next();
   }
 

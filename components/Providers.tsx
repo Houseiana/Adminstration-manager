@@ -38,9 +38,9 @@ export function useLang(): LanguageContextValue {
 /* ============ DATA ============ */
 interface DataContextValue {
   employees: Employee[];
-  addEmployee: (data: Omit<Employee, "id">) => Employee;
-  updateEmployee: (id: string, patch: Partial<Employee>) => void;
-  deleteEmployee: (id: string) => void;
+  addEmployee: (data: Omit<Employee, "id">) => Promise<Employee>;
+  updateEmployee: (id: string, patch: Partial<Employee>) => Promise<void>;
+  deleteEmployee: (id: string) => Promise<void>;
 
   adjustments: AdjustmentMap;
   setAdjustment: (
@@ -48,27 +48,35 @@ interface DataContextValue {
     year: number,
     month: number,
     patch: Partial<PayrollAdjustment>
-  ) => void;
-  bulkApprove: (empIds: string[], year: number, month: number) => void;
+  ) => Promise<void>;
+  bulkApprove: (
+    empIds: string[],
+    year: number,
+    month: number
+  ) => Promise<void>;
 
   leaves: LeaveRecord[];
-  addLeave: (data: Omit<LeaveRecord, "id" | "createdAt">) => LeaveRecord;
-  updateLeave: (id: string, patch: Partial<LeaveRecord>) => void;
-  deleteLeave: (id: string) => void;
+  addLeave: (data: Omit<LeaveRecord, "id" | "createdAt">) => Promise<LeaveRecord>;
+  updateLeave: (id: string, patch: Partial<LeaveRecord>) => Promise<void>;
+  deleteLeave: (id: string) => Promise<void>;
 
   lateRecords: LateRecord[];
-  addLate: (data: Omit<LateRecord, "id" | "createdAt">) => LateRecord;
-  updateLate: (id: string, patch: Partial<LateRecord>) => void;
-  deleteLate: (id: string) => void;
+  addLate: (data: Omit<LateRecord, "id" | "createdAt">) => Promise<LateRecord>;
+  updateLate: (id: string, patch: Partial<LateRecord>) => Promise<void>;
+  deleteLate: (id: string) => Promise<void>;
 
   activities: EmployeeActivity[];
   addActivity: (
     data: Omit<EmployeeActivity, "id" | "createdAt">
-  ) => EmployeeActivity;
-  updateActivity: (id: string, patch: Partial<EmployeeActivity>) => void;
-  deleteActivity: (id: string) => void;
+  ) => Promise<EmployeeActivity>;
+  updateActivity: (
+    id: string,
+    patch: Partial<EmployeeActivity>
+  ) => Promise<void>;
+  deleteActivity: (id: string) => Promise<void>;
 
   ready: boolean;
+  refresh: () => Promise<void>;
 }
 const DataContext = createContext<DataContextValue | null>(null);
 
@@ -78,16 +86,47 @@ export function useData(): DataContextValue {
   return ctx;
 }
 
+/* ============ HTTP ============ */
+async function api<T>(
+  path: string,
+  init?: RequestInit & { body?: BodyInit | null | object }
+): Promise<T> {
+  const opts: RequestInit = {
+    cache: "no-store",
+    credentials: "include",
+    ...init,
+    headers: {
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.headers ?? {}),
+    },
+    body:
+      init?.body && typeof init.body === "object" && !(init.body instanceof FormData)
+        ? JSON.stringify(init.body)
+        : (init?.body as BodyInit | null | undefined),
+  };
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = await res.json();
+      if (j?.error) msg = j.error;
+    } catch {}
+    throw new Error(msg);
+  }
+  return res.json() as Promise<T>;
+}
+
 /* ============ PROVIDER ============ */
 const STORAGE_LANG = "amd_lang";
-const STORAGE_EMPLOYEES = "amd_employees_v6";
-const STORAGE_ADJ = "amd_payroll_adj_v2";
-const STORAGE_LEAVES = "amd_leaves_v2";
-const STORAGE_LATE = "amd_late_v2";
-const STORAGE_ACTIVITIES = "amd_activities_v2";
 
 function adjKey(empId: string, year: number, month: number): string {
   return `${empId}-${year}-${month}`;
+}
+
+interface ApiAdjustment extends PayrollAdjustment {
+  empId: string;
+  year: number;
+  month: number;
 }
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -99,37 +138,63 @@ export function Providers({ children }: { children: ReactNode }) {
   const [activities, setActivities] = useState<EmployeeActivity[]>([]);
   const [ready, setReady] = useState(false);
 
-  // Load from localStorage on mount
+  // ------------ Bootstrap from API ------------
+  const refresh = useCallback(async () => {
+    try {
+      const [
+        empRes,
+        leaveRes,
+        lateRes,
+        actRes,
+        adjRes,
+      ] = await Promise.all([
+        api<{ employees: Employee[] }>("/api/employees"),
+        api<{ leaves: LeaveRecord[] }>("/api/leaves"),
+        api<{ lateRecords: LateRecord[] }>("/api/late"),
+        api<{ activities: EmployeeActivity[] }>("/api/activities"),
+        api<{ adjustments: ApiAdjustment[] }>("/api/payroll-adjustments"),
+      ]);
+      setEmployees(empRes.employees);
+      setLeaves(leaveRes.leaves);
+      setLateRecords(lateRes.lateRecords);
+      setActivities(actRes.activities);
+      const adjMap: AdjustmentMap = {};
+      for (const a of adjRes.adjustments) {
+        adjMap[adjKey(a.empId, a.year, a.month)] = {
+          unpaid: a.unpaid,
+          deductions: a.deductions,
+          bonuses: a.bonuses,
+          notes: a.notes,
+          status: a.status,
+        };
+      }
+      setAdjustments(adjMap);
+    } catch (e) {
+      // 401s on /login page are expected and silent.
+      const isLoginPage =
+        typeof window !== "undefined" && window.location.pathname === "/login";
+      if (!isLoginPage) {
+        console.error("Failed to load data from API", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const storedLang = localStorage.getItem(STORAGE_LANG);
       if (storedLang === "ar" || storedLang === "en") setLangState(storedLang);
+    } catch {}
 
-      // Start empty by default. Real data comes from the user
-      // entering it through the UI (and, eventually, the Neon API).
-      const storedEmps = localStorage.getItem(STORAGE_EMPLOYEES);
-      if (storedEmps) {
-        setEmployees(JSON.parse(storedEmps));
-      }
-
-      const storedAdj = localStorage.getItem(STORAGE_ADJ);
-      if (storedAdj) setAdjustments(JSON.parse(storedAdj));
-
-      const storedLeaves = localStorage.getItem(STORAGE_LEAVES);
-      if (storedLeaves) setLeaves(JSON.parse(storedLeaves));
-
-      const storedLate = localStorage.getItem(STORAGE_LATE);
-      if (storedLate) setLateRecords(JSON.parse(storedLate));
-
-      const storedActivities = localStorage.getItem(STORAGE_ACTIVITIES);
-      if (storedActivities) setActivities(JSON.parse(storedActivities));
-    } catch (e) {
-      console.error("Failed to read storage", e);
+    // On /login, skip the data fetch (would 401 anyway).
+    const isLoginPage =
+      typeof window !== "undefined" && window.location.pathname === "/login";
+    if (isLoginPage) {
+      setReady(true);
+      return;
     }
-    setReady(true);
-  }, []);
+    refresh().finally(() => setReady(true));
+  }, [refresh]);
 
-  // Sync html dir/lang
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
@@ -152,332 +217,194 @@ export function Providers({ children }: { children: ReactNode }) {
 
   const months = useMemo(() => I18N[lang].months, [lang]);
 
-  // ============ Employee actions ============
-  const persistEmployees = (next: Employee[]) => {
-    setEmployees(next);
-    try {
-      localStorage.setItem(STORAGE_EMPLOYEES, JSON.stringify(next));
-    } catch {}
-  };
-
-  const persistActivities = (next: EmployeeActivity[]) => {
-    setActivities(next);
-    try {
-      localStorage.setItem(STORAGE_ACTIVITIES, JSON.stringify(next));
-    } catch {}
-  };
-
-  const newActivityId = () =>
-    `ACT-${Date.now().toString(36)}-${Math.random()
-      .toString(36)
-      .slice(2, 6)}`;
-
+  /* ---------- Employees ---------- */
   const addEmployee = useCallback(
-    (data: Omit<Employee, "id">): Employee => {
-      const max = employees.reduce((m, e) => {
-        const n = parseInt(e.id.replace("EMP-", ""), 10) || 0;
-        return Math.max(m, n);
-      }, 1000);
-      const created: Employee = { ...data, id: `EMP-${max + 1}` };
-      persistEmployees([...employees, created]);
-
-      // Auto-log "hired"
-      const hireActivity: EmployeeActivity = {
-        id: newActivityId(),
-        empId: created.id,
-        type: "hired",
-        date: created.hiringDate,
-        title: "Employee hired",
-        description: `Joined as ${created.title_en} in ${created.department}`,
-        createdAt: new Date().toISOString(),
-      };
-      persistActivities([...activities, hireActivity]);
-
-      return created;
+    async (data: Omit<Employee, "id">): Promise<Employee> => {
+      const { employee } = await api<{ employee: Employee }>(
+        "/api/employees",
+        { method: "POST", body: data }
+      );
+      setEmployees((p) => [...p, employee]);
+      // The server also created a 'hired' activity; reload activities.
+      const { activities: acts } = await api<{ activities: EmployeeActivity[] }>(
+        "/api/activities"
+      );
+      setActivities(acts);
+      return employee;
     },
-    [employees, activities]
+    []
   );
 
   const updateEmployee = useCallback(
-    (id: string, patch: Partial<Employee>) => {
-      const old = employees.find((e) => e.id === id);
-      if (!old) return;
-      const updated = { ...old, ...patch };
-      persistEmployees(
-        employees.map((e) => (e.id === id ? updated : e))
+    async (id: string, patch: Partial<Employee>) => {
+      const { employee } = await api<{ employee: Employee }>(
+        `/api/employees/${id}`,
+        { method: "PUT", body: patch }
       );
-
-      // Detect meaningful changes and auto-log
-      const today = new Date().toISOString().slice(0, 10);
-      const now = new Date().toISOString();
-      const newRecords: EmployeeActivity[] = [];
-
-      if (old.salary !== updated.salary) {
-        const diff = updated.salary - old.salary;
-        newRecords.push({
-          id: newActivityId(),
-          empId: id,
-          type: "salary_changed",
-          date: today,
-          title:
-            diff > 0 ? "Salary increase" : "Salary adjustment",
-          oldValue: old.salary,
-          newValue: updated.salary,
-          amount: diff,
-          createdAt: now,
-        });
-      }
-      if (old.title_en !== updated.title_en) {
-        newRecords.push({
-          id: newActivityId(),
-          empId: id,
-          type: "promoted",
-          date: today,
-          title: "Title change",
-          oldValue: old.title_en,
-          newValue: updated.title_en,
-          createdAt: now,
-        });
-      }
-      if (old.department !== updated.department) {
-        newRecords.push({
-          id: newActivityId(),
-          empId: id,
-          type: "transferred",
-          date: today,
-          title: "Department transfer",
-          oldValue: old.department,
-          newValue: updated.department,
-          createdAt: now,
-        });
-      }
-      if (old.status !== updated.status) {
-        newRecords.push({
-          id: newActivityId(),
-          empId: id,
-          type: "status_changed",
-          date: today,
-          title: "Status change",
-          oldValue: old.status,
-          newValue: updated.status,
-          createdAt: now,
-        });
-      }
-      if (old.type !== updated.type) {
-        newRecords.push({
-          id: newActivityId(),
-          empId: id,
-          type: "type_changed",
-          date: today,
-          title: "Employment type change",
-          oldValue: old.type,
-          newValue: updated.type,
-          createdAt: now,
-        });
-      }
-      if (old.contractType !== updated.contractType) {
-        newRecords.push({
-          id: newActivityId(),
-          empId: id,
-          type: "contract_changed",
-          date: today,
-          title: "Contract type change",
-          oldValue: old.contractType ?? "—",
-          newValue: updated.contractType ?? "—",
-          createdAt: now,
-        });
-      }
-      if (newRecords.length > 0) {
-        persistActivities([...activities, ...newRecords]);
-      }
+      setEmployees((p) => p.map((e) => (e.id === id ? employee : e)));
+      // Server may have logged auto-activities for meaningful diffs.
+      const { activities: acts } = await api<{ activities: EmployeeActivity[] }>(
+        "/api/activities"
+      );
+      setActivities(acts);
     },
-    [employees, activities]
+    []
   );
 
-  const deleteEmployee = useCallback(
-    (id: string) => {
-      persistEmployees(employees.filter((e) => e.id !== id));
-      const remainingLeaves = leaves.filter((l) => l.empId !== id);
-      if (remainingLeaves.length !== leaves.length) {
-        setLeaves(remainingLeaves);
-        try {
-          localStorage.setItem(STORAGE_LEAVES, JSON.stringify(remainingLeaves));
-        } catch {}
+  const deleteEmployee = useCallback(async (id: string) => {
+    await api(`/api/employees/${id}`, { method: "DELETE" });
+    setEmployees((p) => p.filter((e) => e.id !== id));
+    setLeaves((p) => p.filter((l) => l.empId !== id));
+    setLateRecords((p) => p.filter((r) => r.empId !== id));
+    setActivities((p) => p.filter((a) => a.empId !== id));
+    setAdjustments((p) => {
+      const next: AdjustmentMap = {};
+      for (const k of Object.keys(p)) {
+        if (!k.startsWith(`${id}-`)) next[k] = p[k];
       }
-      const remainingLate = lateRecords.filter((r) => r.empId !== id);
-      if (remainingLate.length !== lateRecords.length) {
-        setLateRecords(remainingLate);
-        try {
-          localStorage.setItem(STORAGE_LATE, JSON.stringify(remainingLate));
-        } catch {}
-      }
-      const remainingActivities = activities.filter((a) => a.empId !== id);
-      if (remainingActivities.length !== activities.length) {
-        setActivities(remainingActivities);
-        try {
-          localStorage.setItem(
-            STORAGE_ACTIVITIES,
-            JSON.stringify(remainingActivities)
-          );
-        } catch {}
-      }
-    },
-    [employees, leaves, lateRecords, activities]
-  );
+      return next;
+    });
+  }, []);
 
-  // ============ Adjustment actions ============
-  const persistAdj = (next: AdjustmentMap) => {
-    setAdjustments(next);
-    try {
-      localStorage.setItem(STORAGE_ADJ, JSON.stringify(next));
-    } catch {}
-  };
-
+  /* ---------- Adjustments ---------- */
   const setAdjustment = useCallback(
-    (
+    async (
       empId: string,
       year: number,
       month: number,
       patch: Partial<PayrollAdjustment>
     ) => {
-      const k = adjKey(empId, year, month);
-      const cur: PayrollAdjustment = adjustments[k] ?? {
-        unpaid: 0,
-        deductions: 0,
-        bonuses: 0,
-        status: "draft",
-      };
-      const next = { ...adjustments, [k]: { ...cur, ...patch } };
-      persistAdj(next);
-    },
-    [adjustments]
-  );
-
-  // ============ Leave actions ============
-  const persistLeaves = (next: LeaveRecord[]) => {
-    setLeaves(next);
-    try {
-      localStorage.setItem(STORAGE_LEAVES, JSON.stringify(next));
-    } catch {}
-  };
-
-  const addLeave = useCallback(
-    (data: Omit<LeaveRecord, "id" | "createdAt">): LeaveRecord => {
-      const created: LeaveRecord = {
-        ...data,
-        id: `LV-${Date.now().toString(36)}-${Math.random()
-          .toString(36)
-          .slice(2, 6)}`,
-        createdAt: new Date().toISOString(),
-      };
-      persistLeaves([...leaves, created]);
-      return created;
-    },
-    [leaves]
-  );
-
-  const updateLeave = useCallback(
-    (id: string, patch: Partial<LeaveRecord>) => {
-      persistLeaves(leaves.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-    },
-    [leaves]
-  );
-
-  const deleteLeave = useCallback(
-    (id: string) => {
-      persistLeaves(leaves.filter((l) => l.id !== id));
-    },
-    [leaves]
-  );
-
-  // ============ Late actions ============
-  const persistLate = (next: LateRecord[]) => {
-    setLateRecords(next);
-    try {
-      localStorage.setItem(STORAGE_LATE, JSON.stringify(next));
-    } catch {}
-  };
-
-  const addLate = useCallback(
-    (data: Omit<LateRecord, "id" | "createdAt">): LateRecord => {
-      const created: LateRecord = {
-        ...data,
-        id: `LT-${Date.now().toString(36)}-${Math.random()
-          .toString(36)
-          .slice(2, 6)}`,
-        createdAt: new Date().toISOString(),
-      };
-      persistLate([...lateRecords, created]);
-      return created;
-    },
-    [lateRecords]
-  );
-
-  const updateLate = useCallback(
-    (id: string, patch: Partial<LateRecord>) => {
-      persistLate(
-        lateRecords.map((r) => (r.id === id ? { ...r, ...patch } : r))
+      const { adjustment } = await api<{ adjustment: ApiAdjustment }>(
+        "/api/payroll-adjustments",
+        {
+          method: "PUT",
+          body: {
+            empId,
+            year,
+            month,
+            unpaid: patch.unpaid,
+            deductions: patch.deductions,
+            bonuses: patch.bonuses,
+            status: patch.status,
+            notes: patch.notes,
+          },
+        }
       );
+      setAdjustments((p) => ({
+        ...p,
+        [adjKey(empId, year, month)]: {
+          unpaid: adjustment.unpaid,
+          deductions: adjustment.deductions,
+          bonuses: adjustment.bonuses,
+          notes: adjustment.notes,
+          status: adjustment.status,
+        },
+      }));
     },
-    [lateRecords]
-  );
-
-  const deleteLate = useCallback(
-    (id: string) => {
-      persistLate(lateRecords.filter((r) => r.id !== id));
-    },
-    [lateRecords]
-  );
-
-  // ============ Activity actions (manual entries) ============
-  const addActivity = useCallback(
-    (data: Omit<EmployeeActivity, "id" | "createdAt">): EmployeeActivity => {
-      const created: EmployeeActivity = {
-        ...data,
-        id: newActivityId(),
-        createdAt: new Date().toISOString(),
-      };
-      persistActivities([...activities, created]);
-      return created;
-    },
-    [activities]
-  );
-
-  const updateActivity = useCallback(
-    (id: string, patch: Partial<EmployeeActivity>) => {
-      persistActivities(
-        activities.map((a) => (a.id === id ? { ...a, ...patch } : a))
-      );
-    },
-    [activities]
-  );
-
-  const deleteActivity = useCallback(
-    (id: string) => {
-      persistActivities(activities.filter((a) => a.id !== id));
-    },
-    [activities]
+    []
   );
 
   const bulkApprove = useCallback(
-    (empIds: string[], year: number, month: number) => {
-      const next = { ...adjustments };
-      empIds.forEach((id) => {
+    async (empIds: string[], year: number, month: number) => {
+      // Sequential to keep the API simple; not many employees.
+      for (const id of empIds) {
         const k = adjKey(id, year, month);
-        const cur: PayrollAdjustment = next[k] ?? {
-          unpaid: 0,
-          deductions: 0,
-          bonuses: 0,
-          status: "draft",
-        };
-        if (cur.status === "draft" || cur.status === "pending") {
-          next[k] = { ...cur, status: "approved" };
-        }
-      });
-      persistAdj(next);
+        const cur = adjustments[k];
+        if (cur && (cur.status === "approved" || cur.status === "paid")) continue;
+        await setAdjustment(id, year, month, { status: "approved" });
+      }
     },
-    [adjustments]
+    [adjustments, setAdjustment]
   );
+
+  /* ---------- Leaves ---------- */
+  const addLeave = useCallback(
+    async (data: Omit<LeaveRecord, "id" | "createdAt">): Promise<LeaveRecord> => {
+      const { leave } = await api<{ leave: LeaveRecord }>("/api/leaves", {
+        method: "POST",
+        body: data,
+      });
+      setLeaves((p) => [leave, ...p]);
+      return leave;
+    },
+    []
+  );
+
+  const updateLeave = useCallback(
+    async (id: string, patch: Partial<LeaveRecord>) => {
+      const { leave } = await api<{ leave: LeaveRecord }>(`/api/leaves/${id}`, {
+        method: "PUT",
+        body: patch,
+      });
+      setLeaves((p) => p.map((l) => (l.id === id ? leave : l)));
+    },
+    []
+  );
+
+  const deleteLeave = useCallback(async (id: string) => {
+    await api(`/api/leaves/${id}`, { method: "DELETE" });
+    setLeaves((p) => p.filter((l) => l.id !== id));
+  }, []);
+
+  /* ---------- Late ---------- */
+  const addLate = useCallback(
+    async (data: Omit<LateRecord, "id" | "createdAt">): Promise<LateRecord> => {
+      const { lateRecord } = await api<{ lateRecord: LateRecord }>(
+        "/api/late",
+        { method: "POST", body: data }
+      );
+      setLateRecords((p) => [lateRecord, ...p]);
+      return lateRecord;
+    },
+    []
+  );
+
+  const updateLate = useCallback(
+    async (id: string, patch: Partial<LateRecord>) => {
+      const { lateRecord } = await api<{ lateRecord: LateRecord }>(
+        `/api/late/${id}`,
+        { method: "PUT", body: patch }
+      );
+      setLateRecords((p) => p.map((r) => (r.id === id ? lateRecord : r)));
+    },
+    []
+  );
+
+  const deleteLate = useCallback(async (id: string) => {
+    await api(`/api/late/${id}`, { method: "DELETE" });
+    setLateRecords((p) => p.filter((r) => r.id !== id));
+  }, []);
+
+  /* ---------- Activities ---------- */
+  const addActivity = useCallback(
+    async (
+      data: Omit<EmployeeActivity, "id" | "createdAt">
+    ): Promise<EmployeeActivity> => {
+      const { activity } = await api<{ activity: EmployeeActivity }>(
+        "/api/activities",
+        { method: "POST", body: data }
+      );
+      setActivities((p) => [activity, ...p]);
+      return activity;
+    },
+    []
+  );
+
+  const updateActivity = useCallback(
+    async (id: string, patch: Partial<EmployeeActivity>) => {
+      const { activity } = await api<{ activity: EmployeeActivity }>(
+        `/api/activities/${id}`,
+        { method: "PUT", body: patch }
+      );
+      setActivities((p) => p.map((a) => (a.id === id ? activity : a)));
+    },
+    []
+  );
+
+  const deleteActivity = useCallback(async (id: string) => {
+    await api(`/api/activities/${id}`, { method: "DELETE" });
+    setActivities((p) => p.filter((a) => a.id !== id));
+  }, []);
 
   const langValue = useMemo<LanguageContextValue>(
     () => ({ lang, setLang, t, months }),
@@ -506,6 +433,7 @@ export function Providers({ children }: { children: ReactNode }) {
       updateActivity,
       deleteActivity,
       ready,
+      refresh,
     }),
     [
       employees,
@@ -528,6 +456,7 @@ export function Providers({ children }: { children: ReactNode }) {
       updateActivity,
       deleteActivity,
       ready,
+      refresh,
     ]
   );
 
