@@ -9,6 +9,7 @@ import { fmt, money } from "@/lib/i18n";
 import type { ExpenseEntry } from "@/lib/types";
 
 type View = "list" | "matrix";
+type Scope = "year" | "month" | "day";
 
 // Active entries = posted, not voided, not themselves a reversal.
 // These are the ones that count toward totals.
@@ -16,12 +17,17 @@ function isActive(e: ExpenseEntry): boolean {
   return !e.voidedAt && !e.reversesId;
 }
 
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
 export default function FinancePage() {
   const { t, lang, months } = useLang();
   const { expenses } = useData();
 
   const today = new Date();
+  const [scope, setScope] = useState<Scope>("year");
   const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [day, setDay] = useState(todayISO());
   const [view, setView] = useState<View>("matrix");
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -29,18 +35,27 @@ export default function FinancePage() {
   const [viewing, setViewing] = useState<ExpenseEntry | null>(null);
   const [presetMonth, setPresetMonth] = useState<number | undefined>(undefined);
 
-  const yearExpenses = useMemo(
-    () =>
-      expenses.filter((e) => {
+  // Filter expenses based on current scope.
+  const yearExpenses = useMemo(() => {
+    const dayD = scope === "day" ? new Date(day) : null;
+    return expenses.filter((e) => {
+      if (scope === "year") {
         if (e.year !== year) return false;
-        if (search) {
-          if (!e.category.toLowerCase().includes(search.toLowerCase()))
-            return false;
-        }
-        return true;
-      }),
-    [expenses, year, search]
-  );
+      } else if (scope === "month") {
+        if (e.year !== year || e.month !== month) return false;
+      } else if (scope === "day" && dayD) {
+        // Day scope: match on expense_date if present, else the
+        // first of the entry's year/month (fallback).
+        const ed = e.expenseDate ?? `${e.year}-${String(e.month + 1).padStart(2, "0")}-01`;
+        if (ed !== day) return false;
+      }
+      if (search) {
+        if (!e.category.toLowerCase().includes(search.toLowerCase()))
+          return false;
+      }
+      return true;
+    });
+  }, [expenses, scope, year, month, day, search]);
 
   // Only active entries count toward totals.
   const activeYearExpenses = useMemo(
@@ -94,24 +109,28 @@ export default function FinancePage() {
           <div className="text-muted text-[13px] mt-1">{t("finance_sub")}</div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <div className="flex items-center bg-slate-100 rounded-[10px] p-0.5">
-            <button
-              onClick={() => setView("matrix")}
-              className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition ${
-                view === "matrix" ? "bg-white shadow-sm text-ink" : "text-muted"
-              }`}
-            >
-              {t("view_matrix")}
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition ${
-                view === "list" ? "bg-white shadow-sm text-ink" : "text-muted"
-              }`}
-            >
-              {t("view_list")}
-            </button>
-          </div>
+          {scope === "year" && (
+            <div className="flex items-center bg-slate-100 rounded-[10px] p-0.5">
+              <button
+                onClick={() => setView("matrix")}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition ${
+                  view === "matrix"
+                    ? "bg-white shadow-sm text-ink"
+                    : "text-muted"
+                }`}
+              >
+                {t("view_matrix")}
+              </button>
+              <button
+                onClick={() => setView("list")}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition ${
+                  view === "list" ? "bg-white shadow-sm text-ink" : "text-muted"
+                }`}
+              >
+                {t("view_list")}
+              </button>
+            </div>
+          )}
           <button onClick={() => openAdd()} className="btn btn-primary">
             <svg
               width="14"
@@ -129,40 +148,104 @@ export default function FinancePage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats — labels change with scope */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
         <Stat
           color="bg-accent-soft text-amber-800"
-          label={t("grand_total")}
+          label={
+            scope === "day"
+              ? t("total_for_day")
+              : scope === "month"
+              ? t("total_for_month")
+              : t("total_for_year")
+          }
           value={money(grandTotal, lang)}
         />
         <Stat
           color="bg-blue-100 text-blue-700"
-          label={t("avg_per_month")}
-          value={money(avgPerMonth, lang)}
+          label={scope === "year" ? t("avg_per_month") : t("avg_per_day")}
+          value={money(
+            scope === "year"
+              ? grandTotal / 12
+              : scope === "month"
+              ? grandTotal /
+                new Date(year, month + 1, 0).getDate()
+              : grandTotal,
+            lang
+          )}
         />
         <Stat
           color="bg-green-100 text-green-700"
-          label={t("expenses")}
+          label={t("entries_count")}
           value={fmt(activeYearExpenses.length, lang)}
         />
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-surface border border-line rounded-[12px] mb-4">
-        <div className="field">
-          <label>{t("expense_year")}</label>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
+      {/* Scope tabs */}
+      <div className="flex items-center bg-slate-100 rounded-[10px] p-0.5 mb-3 w-fit">
+        {(["year", "month", "day"] as Scope[]).map((s) => (
+          <button
+            key={s}
+            onClick={() => {
+              setScope(s);
+              if (s !== "year") setView("list");
+            }}
+            className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition ${
+              scope === s ? "bg-white shadow-sm text-ink" : "text-muted"
+            }`}
           >
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
+            {t(`scope_${s}` as const)}
+          </button>
+        ))}
+      </div>
+
+      {/* Filters — fields shown depend on scope */}
+      <div
+        className={`grid grid-cols-1 ${
+          scope === "day" ? "sm:grid-cols-2" : "sm:grid-cols-3"
+        } gap-3 p-4 bg-surface border border-line rounded-[12px] mb-4`}
+      >
+        {scope === "day" ? (
+          <div className="field">
+            <label>{t("select_day")}</label>
+            <input
+              type="date"
+              value={day}
+              onChange={(e) => setDay(e.target.value)}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="field">
+              <label>{t("expense_year")}</label>
+              <select
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {scope === "month" && (
+              <div className="field">
+                <label>{t("select_month")}</label>
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                >
+                  {months.map((m, i) => (
+                    <option key={m} value={i}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
+        )}
         <div className="field">
           <label>{t("f_search")}</label>
           <input
@@ -174,7 +257,7 @@ export default function FinancePage() {
         </div>
       </div>
 
-      {view === "matrix" ? (
+      {scope === "year" && view === "matrix" ? (
         <MatrixView
           matrix={matrix}
           monthlyTotals={monthlyTotals}

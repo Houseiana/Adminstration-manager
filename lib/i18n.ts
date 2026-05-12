@@ -396,6 +396,17 @@ export const I18N = {
     voided_by_entry: "Voided by reversal entry",
     posted_on: "Posted",
     voided_on: "Voided on",
+    // View scope
+    scope: "View",
+    scope_year: "Yearly",
+    scope_month: "Monthly",
+    scope_day: "Daily",
+    select_day: "Select Day",
+    total_for_day: "Day Total",
+    total_for_month: "Month Total",
+    total_for_year: "Year Total",
+    entries_count: "Entries",
+    avg_per_day: "Avg / Day",
   },
   ar: {
     brand: "المدير الإداري",
@@ -790,6 +801,17 @@ export const I18N = {
     voided_by_entry: "ملغي بالقيد رقم",
     posted_on: "تاريخ التسجيل",
     voided_on: "تاريخ الإلغاء",
+    // View scope
+    scope: "العرض",
+    scope_year: "سنوي",
+    scope_month: "شهري",
+    scope_day: "يومي",
+    select_day: "اختر اليوم",
+    total_for_day: "إجمالي اليوم",
+    total_for_month: "إجمالي الشهر",
+    total_for_year: "إجمالي السنة",
+    entries_count: "عدد القيود",
+    avg_per_day: "متوسط يومي",
   },
 } as const;
 
