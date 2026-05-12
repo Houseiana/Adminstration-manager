@@ -16,6 +16,7 @@ const DEPARTMENTS: Department[] = [
   "Technology",
   "Secretariat",
   "Public Relations",
+  "Finance",
 ];
 
 export const TITLES_BY_DEPT: Record<Department, string[]> = {
@@ -37,6 +38,13 @@ export const TITLES_BY_DEPT: Record<Department, string[]> = {
   ],
   Secretariat: ["Secretary"],
   "Public Relations": ["PR Specialist", "Business Developer"],
+  Finance: [
+    "Executive Manager",
+    "Financial Manager",
+    "Accounts Supervisor",
+    "Senior Accountant",
+    "Accountant",
+  ],
 };
 
 export const TITLE_AR: Record<string, string> = {
@@ -56,6 +64,11 @@ export const TITLE_AR: Record<string, string> = {
   Secretary: "سكرتير / سكرتيرة",
   "PR Specialist": "مسؤول علاقات عامة",
   "Business Developer": "مطور أعمال",
+  "Executive Manager": "مدير تنفيذي",
+  "Financial Manager": "مدير مالي",
+  "Accounts Supervisor": "مشرف حسابات",
+  "Senior Accountant": "محاسب أول",
+  Accountant: "محاسب",
 };
 
 export function titleAr(en: string): string {

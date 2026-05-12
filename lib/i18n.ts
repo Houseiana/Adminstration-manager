@@ -165,6 +165,7 @@ export const I18N = {
     dept_Technology: "Technology",
     dept_Secretariat: "Secretariat",
     "dept_Public Relations": "PR & Business Dev.",
+    dept_Finance: "Finance",
     currency: "EGP",
     auto_doc:
       "This document is auto-generated and does not require a signature.",
@@ -530,6 +531,7 @@ export const I18N = {
     dept_Technology: "التكنولوجيا",
     dept_Secretariat: "السكرتارية",
     "dept_Public Relations": "العلاقات العامة وتطوير الأعمال",
+    dept_Finance: "الإدارة المالية",
     currency: "ج.م",
     auto_doc: "هذا المستند تم إنشاؤه آلياً ولا يحتاج إلى توقيع.",
     // Leaves

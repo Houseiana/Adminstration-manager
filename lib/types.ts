@@ -18,7 +18,8 @@ export type Department =
   | "Media"
   | "Technology"
   | "Secretariat"
-  | "Public Relations";
+  | "Public Relations"
+  | "Finance";
 
 export interface Employee {
   id: string;
