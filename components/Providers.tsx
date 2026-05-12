@@ -80,11 +80,10 @@ interface DataContextValue {
   addExpense: (
     data: Omit<ExpenseEntry, "id" | "createdAt">
   ) => Promise<ExpenseEntry>;
-  updateExpense: (
-    id: string,
-    patch: Partial<ExpenseEntry>
-  ) => Promise<void>;
-  deleteExpense: (id: string) => Promise<void>;
+  // Posted expenses cannot be edited or deleted. To correct one,
+  // call reverseExpense — that creates a paired reversal entry
+  // and marks the original as voided.
+  reverseExpense: (id: string, reason?: string) => Promise<ExpenseEntry>;
 
   ready: boolean;
   refresh: () => Promise<void>;
@@ -437,21 +436,24 @@ export function Providers({ children }: { children: ReactNode }) {
     []
   );
 
-  const updateExpense = useCallback(
-    async (id: string, patch: Partial<ExpenseEntry>) => {
-      const { expense } = await api<{ expense: ExpenseEntry }>(
-        `/api/expenses/${id}`,
-        { method: "PUT", body: patch }
-      );
-      setExpenses((p) => p.map((e) => (e.id === id ? expense : e)));
+  const reverseExpense = useCallback(
+    async (id: string, reason?: string): Promise<ExpenseEntry> => {
+      const { reversal, voided } = await api<{
+        reversal: ExpenseEntry;
+        voided: ExpenseEntry;
+      }>(`/api/expenses/${id}/reverse`, {
+        method: "POST",
+        body: { reason },
+      });
+      setExpenses((p) => {
+        // Replace the original with the voided version and prepend the reversal.
+        const next = p.map((e) => (e.id === voided.id ? voided : e));
+        return [reversal, ...next];
+      });
+      return reversal;
     },
     []
   );
-
-  const deleteExpense = useCallback(async (id: string) => {
-    await api(`/api/expenses/${id}`, { method: "DELETE" });
-    setExpenses((p) => p.filter((e) => e.id !== id));
-  }, []);
 
   const langValue = useMemo<LanguageContextValue>(
     () => ({ lang, setLang, t, months }),
@@ -481,8 +483,7 @@ export function Providers({ children }: { children: ReactNode }) {
       deleteActivity,
       expenses,
       addExpense,
-      updateExpense,
-      deleteExpense,
+      reverseExpense,
       ready,
       refresh,
     }),
@@ -508,8 +509,7 @@ export function Providers({ children }: { children: ReactNode }) {
       deleteActivity,
       expenses,
       addExpense,
-      updateExpense,
-      deleteExpense,
+      reverseExpense,
       ready,
       refresh,
     ]

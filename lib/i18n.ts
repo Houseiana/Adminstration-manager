@@ -372,6 +372,21 @@ export const I18N = {
     supplier_phone: "Supplier Phone",
     supplier_address: "Supplier Address",
     col_supplier: "Supplier",
+    // Reversals
+    reverse_entry: "Reverse Entry",
+    reverse_entry_title: "Reverse Accounting Entry",
+    reverse_entry_warning:
+      "Once posted, an entry cannot be edited or deleted. Issuing a reversal creates a new entry that cancels this one — both stay in the audit log.",
+    reverse_reason: "Reason for reversal",
+    reverse_reason_optional: "Optional — recommended for audit",
+    confirm_reverse: "Issue Reversal",
+    reversal_badge: "REVERSAL",
+    voided_badge: "VOIDED",
+    voided_label: "Cancelled by reversal",
+    is_reversal_label: "Reversal entry",
+    cannot_edit_warning:
+      "Posted entries cannot be edited. To correct, issue a reversal entry.",
+    reversal_recorded: "Reversal entry posted",
   },
   ar: {
     brand: "المدير الإداري",
@@ -742,6 +757,21 @@ export const I18N = {
     supplier_phone: "رقم تليفون المورد",
     supplier_address: "عنوان المورد",
     col_supplier: "المورد",
+    // Reversals
+    reverse_entry: "إلغاء بقيد عكسي",
+    reverse_entry_title: "إلغاء قيد محاسبي",
+    reverse_entry_warning:
+      "لا يمكن تعديل أو حذف القيد بعد تسجيله. إصدار قيد عكسي يلغي هذا القيد بقيد جديد — يظل الاثنان في سجل المراجعة.",
+    reverse_reason: "سبب الإلغاء",
+    reverse_reason_optional: "اختياري — يُنصح به للمراجعة",
+    confirm_reverse: "إصدار قيد عكسي",
+    reversal_badge: "قيد إلغاء",
+    voided_badge: "ملغي",
+    voided_label: "ملغي بقيد عكسي",
+    is_reversal_label: "قيد إلغاء",
+    cannot_edit_warning:
+      "لا يمكن تعديل القيود بعد تسجيلها. للتصحيح، أصدر قيد عكسي.",
+    reversal_recorded: "تم تسجيل القيد العكسي",
   },
 } as const;
 

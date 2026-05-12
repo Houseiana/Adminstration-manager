@@ -9,7 +9,6 @@ import type { ExpenseEntry } from "@/lib/types";
 interface Props {
   open: boolean;
   onClose: () => void;
-  expense?: ExpenseEntry | null;
   defaultYear?: number;
   defaultMonth?: number;
 }
@@ -20,12 +19,11 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 export function ExpenseModal({
   open,
   onClose,
-  expense,
   defaultYear,
   defaultMonth,
 }: Props) {
   const { t, months } = useLang();
-  const { expenses, addExpense, updateExpense } = useData();
+  const { expenses, addExpense } = useData();
   const { show: toast } = useToast();
 
   const [category, setCategory] = useState("");
@@ -78,41 +76,23 @@ export function ExpenseModal({
 
   useEffect(() => {
     if (!open) return;
-    if (expense) {
-      setCategory(expense.category);
-      setAmount(expense.amount);
-      setExpenseDate(
-        expense.expenseDate ||
-          `${expense.year}-${String(expense.month + 1).padStart(2, "0")}-01`
-      );
-      setVendorName(expense.vendorName ?? "");
-      setSupplierName(expense.supplierName ?? "");
-      setSupplierPhone(expense.supplierPhone ?? "");
-      setSupplierAddress(expense.supplierAddress ?? "");
-      setAuthorizedBy(expense.authorizedBy ?? "");
-      setHasInvoice(expense.hasInvoice);
-      setInvoiceNumber(expense.invoiceNumber ?? "");
-      setNoInvoiceReason(expense.noInvoiceReason ?? "");
-      setNotes(expense.notes ?? "");
-    } else {
-      setCategory("");
-      setAmount(0);
-      const initialDate =
-        defaultYear !== undefined && defaultMonth !== undefined
-          ? `${defaultYear}-${String(defaultMonth + 1).padStart(2, "0")}-01`
-          : todayISO();
-      setExpenseDate(initialDate);
-      setVendorName("");
-      setSupplierName("");
-      setSupplierPhone("");
-      setSupplierAddress("");
-      setAuthorizedBy("");
-      setHasInvoice(true);
-      setInvoiceNumber("");
-      setNoInvoiceReason("");
-      setNotes("");
-    }
-  }, [open, expense, defaultYear, defaultMonth]);
+    setCategory("");
+    setAmount(0);
+    const initialDate =
+      defaultYear !== undefined && defaultMonth !== undefined
+        ? `${defaultYear}-${String(defaultMonth + 1).padStart(2, "0")}-01`
+        : todayISO();
+    setExpenseDate(initialDate);
+    setVendorName("");
+    setSupplierName("");
+    setSupplierPhone("");
+    setSupplierAddress("");
+    setAuthorizedBy("");
+    setHasInvoice(true);
+    setInvoiceNumber("");
+    setNoInvoiceReason("");
+    setNotes("");
+  }, [open, defaultYear, defaultMonth]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -136,17 +116,19 @@ export function ExpenseModal({
         : undefined,
       notes: notes.trim() || undefined,
     };
-    const p = expense
-      ? updateExpense(expense.id, data).then(() => toast(t("expense_updated")))
-      : addExpense(data).then(() => toast(t("expense_added")));
-    p.then(() => onClose()).catch((err) => alert(err?.message ?? "Error"));
+    addExpense(data)
+      .then(() => {
+        toast(t("expense_added"));
+        onClose();
+      })
+      .catch((err) => alert(err?.message ?? "Error"));
   };
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={expense ? t("edit_expense") : t("add_expense")}
+      title={t("add_expense")}
       maxWidth="max-w-[680px]"
       footer={
         <>

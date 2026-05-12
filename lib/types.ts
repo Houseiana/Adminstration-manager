@@ -138,6 +138,9 @@ export interface ExpenseEntry {
   hasInvoice: boolean;
   noInvoiceReason?: string;
   notes?: string;
+  voidedAt?: string;
+  reversesId?: string;
+  reversalReason?: string;
   createdAt: string;
 }
 

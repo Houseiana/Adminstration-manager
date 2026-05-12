@@ -2,24 +2,29 @@
 
 import { useMemo, useState } from "react";
 import { useData, useLang } from "@/components/Providers";
-import { useToast } from "@/components/Toast";
 import { ExpenseModal } from "@/components/ExpenseModal";
+import { ReverseExpenseModal } from "@/components/ReverseExpenseModal";
 import { fmt, money } from "@/lib/i18n";
 import type { ExpenseEntry } from "@/lib/types";
 
 type View = "list" | "matrix";
 
+// Active entries = posted, not voided, not themselves a reversal.
+// These are the ones that count toward totals.
+function isActive(e: ExpenseEntry): boolean {
+  return !e.voidedAt && !e.reversesId;
+}
+
 export default function FinancePage() {
   const { t, lang, months } = useLang();
-  const { expenses, deleteExpense } = useData();
-  const { show: toast } = useToast();
+  const { expenses } = useData();
 
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [view, setView] = useState<View>("matrix");
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<ExpenseEntry | null>(null);
+  const [reversing, setReversing] = useState<ExpenseEntry | null>(null);
   const [presetMonth, setPresetMonth] = useState<number | undefined>(undefined);
 
   const yearExpenses = useMemo(
@@ -35,19 +40,25 @@ export default function FinancePage() {
     [expenses, year, search]
   );
 
+  // Only active entries count toward totals.
+  const activeYearExpenses = useMemo(
+    () => yearExpenses.filter(isActive),
+    [yearExpenses]
+  );
+
   // Monthly totals (12 numbers, index 0..11)
   const monthlyTotals = useMemo(() => {
     const arr = new Array(12).fill(0) as number[];
-    for (const e of yearExpenses) arr[e.month] += e.amount;
+    for (const e of activeYearExpenses) arr[e.month] += e.amount;
     return arr;
-  }, [yearExpenses]);
+  }, [activeYearExpenses]);
   const grandTotal = monthlyTotals.reduce((s, n) => s + n, 0);
   const avgPerMonth = grandTotal / 12;
 
-  // For matrix view: group entries by category, then by month
+  // For matrix view: group only ACTIVE entries by category, then by month
   const matrix = useMemo(() => {
     const map = new Map<string, number[]>();
-    for (const e of yearExpenses) {
+    for (const e of activeYearExpenses) {
       if (!map.has(e.category)) {
         map.set(e.category, new Array(12).fill(0));
       }
@@ -60,20 +71,13 @@ export default function FinancePage() {
         total: vals.reduce((s, n) => s + n, 0),
       }))
       .sort((a, b) => b.total - a.total);
-  }, [yearExpenses]);
+  }, [activeYearExpenses]);
 
   const yearOptions = useMemo(() => {
     return Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i);
   }, [today]);
 
-  const handleDelete = (id: string) => {
-    if (confirm(t("confirm_delete_expense"))) {
-      deleteExpense(id).then(() => toast(t("expense_deleted")));
-    }
-  };
-
   const openAdd = (month?: number) => {
-    setEditing(null);
     setPresetMonth(month);
     setModalOpen(true);
   };
@@ -138,7 +142,7 @@ export default function FinancePage() {
         <Stat
           color="bg-green-100 text-green-700"
           label={t("expenses")}
-          value={fmt(yearExpenses.length, lang)}
+          value={fmt(activeYearExpenses.length, lang)}
         />
       </div>
 
@@ -183,20 +187,21 @@ export default function FinancePage() {
           months={months}
           lang={lang}
           t={t}
-          onEdit={(e) => {
-            setEditing(e);
-            setModalOpen(true);
-          }}
-          onDelete={handleDelete}
+          onReverse={(e) => setReversing(e)}
         />
       )}
 
       <ExpenseModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        expense={editing}
         defaultYear={year}
         defaultMonth={presetMonth}
+      />
+
+      <ReverseExpenseModal
+        open={reversing !== null}
+        onClose={() => setReversing(null)}
+        expense={reversing}
       />
     </>
   );
@@ -349,15 +354,13 @@ function ListView({
   months,
   lang,
   t,
-  onEdit,
-  onDelete,
+  onReverse,
 }: {
   rows: ExpenseEntry[];
   months: readonly string[];
   lang: string;
   t: (k: never) => string;
-  onEdit: (e: ExpenseEntry) => void;
-  onDelete: (id: string) => void;
+  onReverse: (e: ExpenseEntry) => void;
 }) {
   const tt = t as (k: string) => string;
   if (rows.length === 0) {
@@ -387,20 +390,56 @@ function ListView({
             {rows.map((e) => {
               const displayDate =
                 e.expenseDate || `${e.year}-${String(e.month + 1).padStart(2, "0")}`;
+              const isVoided = Boolean(e.voidedAt);
+              const isReversal = Boolean(e.reversesId);
+              const inactive = isVoided || isReversal;
               return (
-                <tr key={e.id} className="hover:bg-slate-50">
+                <tr
+                  key={e.id}
+                  className={`hover:bg-slate-50 ${
+                    isVoided ? "bg-red-50/30" : isReversal ? "bg-amber-50/40" : ""
+                  }`}
+                >
                   <Td className="mono whitespace-nowrap">
                     <div>{displayDate}</div>
                     <div className="text-[10px] text-muted">
                       {months[e.month]} {e.year}
                     </div>
                   </Td>
-                  <Td className="font-semibold">{e.category}</Td>
-                  <Td>{e.vendorName || "—"}</Td>
                   <Td>
-                    {e.hasInvoice ? (
+                    <div
+                      className={`font-semibold ${
+                        isVoided ? "line-through text-muted" : ""
+                      }`}
+                    >
+                      {e.category}
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {isReversal && (
+                        <span className="badge badge-yellow">
+                          ↺ {tt("reversal_badge")}
+                        </span>
+                      )}
+                      {isVoided && (
+                        <span className="badge badge-red">
+                          ✕ {tt("voided_badge")}
+                        </span>
+                      )}
+                    </div>
+                  </Td>
+                  <Td className={isVoided ? "line-through text-muted" : ""}>
+                    {e.vendorName || "—"}
+                  </Td>
+                  <Td>
+                    {isReversal ? (
+                      <span className="text-[11px] text-muted italic">—</span>
+                    ) : e.hasInvoice ? (
                       e.invoiceNumber ? (
-                        <span className="mono text-[12px]">
+                        <span
+                          className={`mono text-[12px] ${
+                            isVoided ? "line-through" : ""
+                          }`}
+                        >
                           {e.invoiceNumber}
                         </span>
                       ) : (
@@ -421,36 +460,40 @@ function ListView({
                       </div>
                     )}
                   </Td>
-                  <Td className="mono font-bold whitespace-nowrap">
+                  <Td
+                    className={`mono font-bold whitespace-nowrap ${
+                      isVoided
+                        ? "line-through text-muted"
+                        : isReversal
+                        ? "text-red-600"
+                        : ""
+                    }`}
+                  >
+                    {isReversal ? "-" : ""}
                     {money(e.amount, lang as "en" | "ar")}
                   </Td>
                   <Td className="text-[12px]">{e.authorizedBy || "—"}</Td>
                   <Td className="text-muted text-[12px] max-w-[200px] truncate">
-                    {e.notes ?? "—"}
+                    {isReversal && e.reversalReason ? (
+                      <span className="italic">
+                        {tt("reverse_reason")}: {e.reversalReason}
+                      </span>
+                    ) : (
+                      e.notes ?? "—"
+                    )}
                   </Td>
                   <Td className="text-end">
-                    <div className="inline-flex gap-1">
+                    {inactive ? (
+                      <span className="text-[11px] text-muted">—</span>
+                    ) : (
                       <button
-                        onClick={() => onEdit(e)}
-                        title={tt("edit")}
-                        className="btn btn-icon btn-soft"
+                        onClick={() => onReverse(e)}
+                        title={tt("reverse_entry")}
+                        className="btn btn-soft btn-sm whitespace-nowrap"
                       >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
+                        ↺ {tt("reverse_entry")}
                       </button>
-                      <button
-                        onClick={() => onDelete(e.id)}
-                        title={tt("delete")}
-                        className="btn btn-icon btn-danger"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
-                    </div>
+                    )}
                   </Td>
                 </tr>
               );

@@ -154,6 +154,12 @@ export function toExpense(row: Row): ExpenseEntry {
         : Boolean(row.has_invoice),
     noInvoiceReason: str(row.no_invoice_reason),
     notes: str(row.notes),
+    voidedAt:
+      row.voided_at instanceof Date
+        ? row.voided_at.toISOString()
+        : str(row.voided_at as unknown as string),
+    reversesId: str(row.reverses_id),
+    reversalReason: str(row.reversal_reason),
     createdAt:
       row.created_at instanceof Date
         ? row.created_at.toISOString()

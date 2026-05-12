@@ -11,7 +11,8 @@ const EXP_COLUMNS = `
   vendor_name, supplier_name, supplier_phone, supplier_address,
   authorized_by, expense_date,
   invoice_number, has_invoice, no_invoice_reason,
-  notes, created_at, updated_at
+  notes, voided_at, reverses_id, reversal_reason,
+  created_at, updated_at
 `;
 
 export async function GET() {
