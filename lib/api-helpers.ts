@@ -8,6 +8,7 @@ import {
 import type {
   Employee,
   EmployeeActivity,
+  ExpenseEntry,
   LateRecord,
   LeaveRecord,
   PayrollAdjustment,
@@ -130,6 +131,21 @@ export function toActivity(row: Row): EmployeeActivity {
     createdAt: row.created_at instanceof Date
       ? row.created_at.toISOString()
       : String(row.created_at ?? ""),
+  };
+}
+
+export function toExpense(row: Row): ExpenseEntry {
+  return {
+    id: String(row.id),
+    category: String(row.category ?? ""),
+    year: Number(row.year),
+    month: Number(row.month),
+    amount: num(row.amount, 0),
+    notes: str(row.notes),
+    createdAt:
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : String(row.created_at ?? ""),
   };
 }
 

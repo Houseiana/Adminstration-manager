@@ -14,6 +14,7 @@ import type {
   AdjustmentMap,
   Employee,
   EmployeeActivity,
+  ExpenseEntry,
   Lang,
   LateRecord,
   LeaveRecord,
@@ -74,6 +75,16 @@ interface DataContextValue {
     patch: Partial<EmployeeActivity>
   ) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
+
+  expenses: ExpenseEntry[];
+  addExpense: (
+    data: Omit<ExpenseEntry, "id" | "createdAt">
+  ) => Promise<ExpenseEntry>;
+  updateExpense: (
+    id: string,
+    patch: Partial<ExpenseEntry>
+  ) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
 
   ready: boolean;
   refresh: () => Promise<void>;
@@ -137,6 +148,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [lateRecords, setLateRecords] = useState<LateRecord[]>([]);
   const [activities, setActivities] = useState<EmployeeActivity[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [ready, setReady] = useState(false);
 
   // ------------ Bootstrap from API ------------
@@ -148,17 +160,20 @@ export function Providers({ children }: { children: ReactNode }) {
         lateRes,
         actRes,
         adjRes,
+        expRes,
       ] = await Promise.all([
         api<{ employees: Employee[] }>("/api/employees"),
         api<{ leaves: LeaveRecord[] }>("/api/leaves"),
         api<{ lateRecords: LateRecord[] }>("/api/late"),
         api<{ activities: EmployeeActivity[] }>("/api/activities"),
         api<{ adjustments: ApiAdjustment[] }>("/api/payroll-adjustments"),
+        api<{ expenses: ExpenseEntry[] }>("/api/expenses"),
       ]);
       setEmployees(empRes.employees);
       setLeaves(leaveRes.leaves);
       setLateRecords(lateRes.lateRecords);
       setActivities(actRes.activities);
+      setExpenses(expRes.expenses);
       const adjMap: AdjustmentMap = {};
       for (const a of adjRes.adjustments) {
         adjMap[adjKey(a.empId, a.year, a.month)] = {
@@ -407,6 +422,37 @@ export function Providers({ children }: { children: ReactNode }) {
     setActivities((p) => p.filter((a) => a.id !== id));
   }, []);
 
+  /* ---------- Expenses ---------- */
+  const addExpense = useCallback(
+    async (
+      data: Omit<ExpenseEntry, "id" | "createdAt">
+    ): Promise<ExpenseEntry> => {
+      const { expense } = await api<{ expense: ExpenseEntry }>(
+        "/api/expenses",
+        { method: "POST", body: data }
+      );
+      setExpenses((p) => [expense, ...p]);
+      return expense;
+    },
+    []
+  );
+
+  const updateExpense = useCallback(
+    async (id: string, patch: Partial<ExpenseEntry>) => {
+      const { expense } = await api<{ expense: ExpenseEntry }>(
+        `/api/expenses/${id}`,
+        { method: "PUT", body: patch }
+      );
+      setExpenses((p) => p.map((e) => (e.id === id ? expense : e)));
+    },
+    []
+  );
+
+  const deleteExpense = useCallback(async (id: string) => {
+    await api(`/api/expenses/${id}`, { method: "DELETE" });
+    setExpenses((p) => p.filter((e) => e.id !== id));
+  }, []);
+
   const langValue = useMemo<LanguageContextValue>(
     () => ({ lang, setLang, t, months }),
     [lang, setLang, t, months]
@@ -433,6 +479,10 @@ export function Providers({ children }: { children: ReactNode }) {
       addActivity,
       updateActivity,
       deleteActivity,
+      expenses,
+      addExpense,
+      updateExpense,
+      deleteExpense,
       ready,
       refresh,
     }),
@@ -456,6 +506,10 @@ export function Providers({ children }: { children: ReactNode }) {
       addActivity,
       updateActivity,
       deleteActivity,
+      expenses,
+      addExpense,
+      updateExpense,
+      deleteExpense,
       ready,
       refresh,
     ]

@@ -120,4 +120,14 @@ export interface EmployeeActivity {
   createdAt: string;
 }
 
+export interface ExpenseEntry {
+  id: string;
+  category: string;
+  year: number;
+  month: number;
+  amount: number;
+  notes?: string;
+  createdAt: string;
+}
+
 export type Lang = "en" | "ar";

@@ -1,4 +1,458 @@
-import { Placeholder } from "@/components/Placeholder";
-export default function Page() {
-  return <Placeholder />;
+"use client";
+
+import { useMemo, useState } from "react";
+import { useData, useLang } from "@/components/Providers";
+import { useToast } from "@/components/Toast";
+import { ExpenseModal } from "@/components/ExpenseModal";
+import { fmt, money } from "@/lib/i18n";
+import type { ExpenseEntry } from "@/lib/types";
+
+type View = "list" | "matrix";
+
+export default function FinancePage() {
+  const { t, lang, months } = useLang();
+  const { expenses, deleteExpense } = useData();
+  const { show: toast } = useToast();
+
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [view, setView] = useState<View>("matrix");
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<ExpenseEntry | null>(null);
+  const [presetMonth, setPresetMonth] = useState<number | undefined>(undefined);
+
+  const yearExpenses = useMemo(
+    () =>
+      expenses.filter((e) => {
+        if (e.year !== year) return false;
+        if (search) {
+          if (!e.category.toLowerCase().includes(search.toLowerCase()))
+            return false;
+        }
+        return true;
+      }),
+    [expenses, year, search]
+  );
+
+  // Monthly totals (12 numbers, index 0..11)
+  const monthlyTotals = useMemo(() => {
+    const arr = new Array(12).fill(0) as number[];
+    for (const e of yearExpenses) arr[e.month] += e.amount;
+    return arr;
+  }, [yearExpenses]);
+  const grandTotal = monthlyTotals.reduce((s, n) => s + n, 0);
+  const avgPerMonth = grandTotal / 12;
+
+  // For matrix view: group entries by category, then by month
+  const matrix = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const e of yearExpenses) {
+      if (!map.has(e.category)) {
+        map.set(e.category, new Array(12).fill(0));
+      }
+      map.get(e.category)![e.month] += e.amount;
+    }
+    return Array.from(map.entries())
+      .map(([category, vals]) => ({
+        category,
+        vals,
+        total: vals.reduce((s, n) => s + n, 0),
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [yearExpenses]);
+
+  const yearOptions = useMemo(() => {
+    return Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i);
+  }, [today]);
+
+  const handleDelete = (id: string) => {
+    if (confirm(t("confirm_delete_expense"))) {
+      deleteExpense(id).then(() => toast(t("expense_deleted")));
+    }
+  };
+
+  const openAdd = (month?: number) => {
+    setEditing(null);
+    setPresetMonth(month);
+    setModalOpen(true);
+  };
+
+  return (
+    <>
+      <div className="flex items-end justify-between gap-4 flex-wrap mb-5">
+        <div>
+          <h1 className="text-[24px] font-extrabold m-0 -tracking-[.3px]">
+            {t("daily_variable_expenses")}
+          </h1>
+          <div className="text-muted text-[13px] mt-1">{t("finance_sub")}</div>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex items-center bg-slate-100 rounded-[10px] p-0.5">
+            <button
+              onClick={() => setView("matrix")}
+              className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition ${
+                view === "matrix" ? "bg-white shadow-sm text-ink" : "text-muted"
+              }`}
+            >
+              {t("view_matrix")}
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition ${
+                view === "list" ? "bg-white shadow-sm text-ink" : "text-muted"
+              }`}
+            >
+              {t("view_list")}
+            </button>
+          </div>
+          <button onClick={() => openAdd()} className="btn btn-primary">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            {t("add_expense")}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+        <Stat
+          color="bg-accent-soft text-amber-800"
+          label={t("grand_total")}
+          value={money(grandTotal, lang)}
+        />
+        <Stat
+          color="bg-blue-100 text-blue-700"
+          label={t("avg_per_month")}
+          value={money(avgPerMonth, lang)}
+        />
+        <Stat
+          color="bg-green-100 text-green-700"
+          label={t("expenses")}
+          value={fmt(yearExpenses.length, lang)}
+        />
+      </div>
+
+      {/* Filters */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-surface border border-line rounded-[12px] mb-4">
+        <div className="field">
+          <label>{t("expense_year")}</label>
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>{t("f_search")}</label>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("expense_category")}
+          />
+        </div>
+      </div>
+
+      {view === "matrix" ? (
+        <MatrixView
+          matrix={matrix}
+          monthlyTotals={monthlyTotals}
+          grandTotal={grandTotal}
+          months={months}
+          lang={lang}
+          t={t}
+        />
+      ) : (
+        <ListView
+          rows={yearExpenses}
+          months={months}
+          lang={lang}
+          t={t}
+          onEdit={(e) => {
+            setEditing(e);
+            setModalOpen(true);
+          }}
+          onDelete={handleDelete}
+        />
+      )}
+
+      <ExpenseModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        expense={editing}
+        defaultYear={year}
+        defaultMonth={presetMonth}
+      />
+    </>
+  );
+}
+
+/* ============ STAT ============ */
+function Stat({
+  color,
+  label,
+  value,
+}: {
+  color: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="stat">
+      <div className={`stat-icon ${color}`}>
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      </div>
+      <div>
+        <div className="stat-label">{label}</div>
+        <div className="stat-value">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ============ MATRIX VIEW ============ */
+function MatrixView({
+  matrix,
+  monthlyTotals,
+  grandTotal,
+  months,
+  lang,
+  t,
+}: {
+  matrix: { category: string; vals: number[]; total: number }[];
+  monthlyTotals: number[];
+  grandTotal: number;
+  months: readonly string[];
+  lang: string;
+  t: (k: never) => string;
+}) {
+  if (matrix.length === 0) {
+    return (
+      <div className="card">
+        <div className="card-body empty">
+          {(t as (k: string) => string)("no_expenses")}
+        </div>
+      </div>
+    );
+  }
+  const shortMonths = (lang === "ar"
+    ? "ينا فبر مار أبر ماي يون يول أغس سبت أكت نوف ديس"
+    : "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec"
+  ).split(" ");
+  return (
+    <div className="card">
+      <div className="overflow-x-auto">
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr className="bg-slate-50">
+              <th
+                className="sticky text-start px-3 py-2.5 font-semibold text-muted text-[11px] uppercase tracking-wider border-b border-line whitespace-nowrap"
+                style={{
+                  [lang === "ar" ? "right" : "left"]: 0,
+                  background: "#fafbfc",
+                }}
+              >
+                {(t as (k: string) => string)("expense_category")}
+              </th>
+              {shortMonths.map((m) => (
+                <th
+                  key={m}
+                  className="text-center px-2 py-2.5 font-semibold text-muted text-[10px] uppercase tracking-wider border-b border-line whitespace-nowrap"
+                >
+                  {m}
+                </th>
+              ))}
+              <th className="text-end px-3 py-2.5 font-bold text-ink text-[11px] uppercase tracking-wider border-b border-line whitespace-nowrap bg-accent-soft">
+                {(t as (k: string) => string)("grand_total")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.map(({ category, vals, total }) => (
+              <tr key={category} className="hover:bg-slate-50">
+                <td
+                  className="px-3 py-2.5 border-b border-line font-semibold whitespace-nowrap sticky"
+                  style={{
+                    [lang === "ar" ? "right" : "left"]: 0,
+                    background: "white",
+                  }}
+                >
+                  {category}
+                </td>
+                {vals.map((v, i) => (
+                  <td
+                    key={i}
+                    className="text-center px-2 py-2.5 border-b border-line mono"
+                  >
+                    {v > 0 ? new Intl.NumberFormat(lang === "ar" ? "ar-EG" : "en-US", { maximumFractionDigits: 0 }).format(v) : ""}
+                  </td>
+                ))}
+                <td className="text-end px-3 py-2.5 border-b border-line mono font-bold bg-accent-soft text-amber-900 whitespace-nowrap">
+                  {money(total, lang as "en" | "ar")}
+                </td>
+              </tr>
+            ))}
+            <tr className="bg-slate-900 text-white">
+              <td
+                className="px-3 py-2.5 font-bold uppercase tracking-wider text-[11px] sticky"
+                style={{
+                  [lang === "ar" ? "right" : "left"]: 0,
+                  background: "#0f172a",
+                }}
+              >
+                {(t as (k: string) => string)("monthly_total")}
+              </td>
+              {monthlyTotals.map((v, i) => (
+                <td key={i} className="text-center px-2 py-2.5 mono font-bold">
+                  {v > 0 ? new Intl.NumberFormat(lang === "ar" ? "ar-EG" : "en-US", { maximumFractionDigits: 0 }).format(v) : ""}
+                </td>
+              ))}
+              <td className="text-end px-3 py-2.5 mono font-extrabold bg-accent text-ink whitespace-nowrap">
+                {money(grandTotal, lang as "en" | "ar")}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============ LIST VIEW ============ */
+function ListView({
+  rows,
+  months,
+  lang,
+  t,
+  onEdit,
+  onDelete,
+}: {
+  rows: ExpenseEntry[];
+  months: readonly string[];
+  lang: string;
+  t: (k: never) => string;
+  onEdit: (e: ExpenseEntry) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="card">
+        <div className="card-body empty">
+          {(t as (k: string) => string)("no_expenses")}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="card">
+      <div className="overflow-x-auto">
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr className="bg-slate-50">
+              <Th>{(t as (k: string) => string)("expense_category")}</Th>
+              <Th>{(t as (k: string) => string)("expense_month")}</Th>
+              <Th>{(t as (k: string) => string)("expense_amount")}</Th>
+              <Th>{(t as (k: string) => string)("expense_notes")}</Th>
+              <Th className="text-end">
+                {(t as (k: string) => string)("c_actions")}
+              </Th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((e) => (
+              <tr key={e.id} className="hover:bg-slate-50">
+                <Td className="font-semibold">{e.category}</Td>
+                <Td>
+                  {months[e.month]} {e.year}
+                </Td>
+                <Td className="mono font-bold">{money(e.amount, lang as "en" | "ar")}</Td>
+                <Td className="text-muted max-w-[280px] truncate">
+                  {e.notes ?? "—"}
+                </Td>
+                <Td className="text-end">
+                  <div className="inline-flex gap-1">
+                    <button
+                      onClick={() => onEdit(e)}
+                      title={(t as (k: string) => string)("edit")}
+                      className="btn btn-icon btn-soft"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => onDelete(e.id)}
+                      title={(t as (k: string) => string)("delete")}
+                      className="btn btn-icon btn-danger"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Th({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <th
+      className={`text-start px-3.5 py-3 font-semibold text-muted text-[11px] uppercase tracking-wider border-b border-line whitespace-nowrap ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <td className={`px-3.5 py-3.5 border-b border-line align-middle ${className}`}>
+      {children}
+    </td>
+  );
 }
