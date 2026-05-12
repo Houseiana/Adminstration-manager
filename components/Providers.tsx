@@ -87,22 +87,23 @@ export function useData(): DataContextValue {
 }
 
 /* ============ HTTP ============ */
-async function api<T>(
-  path: string,
-  init?: RequestInit & { body?: BodyInit | null | object }
-): Promise<T> {
+interface ApiInit {
+  method?: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+}
+
+async function api<T>(path: string, init?: ApiInit): Promise<T> {
+  const hasBody = init?.body !== undefined && init?.body !== null;
   const opts: RequestInit = {
+    method: init?.method ?? "GET",
     cache: "no-store",
     credentials: "include",
-    ...init,
     headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(init?.headers ?? {}),
     },
-    body:
-      init?.body && typeof init.body === "object" && !(init.body instanceof FormData)
-        ? JSON.stringify(init.body)
-        : (init?.body as BodyInit | null | undefined),
+    body: hasBody ? JSON.stringify(init!.body) : undefined,
   };
   const res = await fetch(path, opts);
   if (!res.ok) {

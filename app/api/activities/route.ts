@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  if (!body.empId || !body.type || !body.date || !body.title?.trim()) {
+  const title = body.title?.trim();
+  if (!body.empId || !body.type || !body.date || !title) {
     return NextResponse.json(
       { error: "empId, type, date, title required." },
       { status: 400 }
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
         body.empId,
         body.type,
         body.date,
-        body.title.trim(),
+        title,
         body.description ?? null,
         body.oldValue == null ? null : String(body.oldValue),
         body.newValue == null ? null : String(body.newValue),
