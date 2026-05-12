@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useData, useLang } from "@/components/Providers";
 import { ExpenseModal } from "@/components/ExpenseModal";
 import { ReverseExpenseModal } from "@/components/ReverseExpenseModal";
+import { ViewExpenseModal } from "@/components/ViewExpenseModal";
 import { fmt, money } from "@/lib/i18n";
 import type { ExpenseEntry } from "@/lib/types";
 
@@ -25,6 +26,7 @@ export default function FinancePage() {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [reversing, setReversing] = useState<ExpenseEntry | null>(null);
+  const [viewing, setViewing] = useState<ExpenseEntry | null>(null);
   const [presetMonth, setPresetMonth] = useState<number | undefined>(undefined);
 
   const yearExpenses = useMemo(
@@ -188,6 +190,7 @@ export default function FinancePage() {
           lang={lang}
           t={t}
           onReverse={(e) => setReversing(e)}
+          onView={(e) => setViewing(e)}
         />
       )}
 
@@ -202,6 +205,17 @@ export default function FinancePage() {
         open={reversing !== null}
         onClose={() => setReversing(null)}
         expense={reversing}
+      />
+
+      <ViewExpenseModal
+        open={viewing !== null}
+        onClose={() => setViewing(null)}
+        expense={viewing}
+        onReverse={(e) => {
+          setViewing(null);
+          setReversing(e);
+        }}
+        onShowOther={(e) => setViewing(e)}
       />
     </>
   );
@@ -355,12 +369,14 @@ function ListView({
   lang,
   t,
   onReverse,
+  onView,
 }: {
   rows: ExpenseEntry[];
   months: readonly string[];
   lang: string;
   t: (k: never) => string;
   onReverse: (e: ExpenseEntry) => void;
+  onView: (e: ExpenseEntry) => void;
 }) {
   const tt = t as (k: string) => string;
   if (rows.length === 0) {
@@ -462,14 +478,9 @@ function ListView({
                   </Td>
                   <Td
                     className={`mono font-bold whitespace-nowrap ${
-                      isVoided
-                        ? "line-through text-muted"
-                        : isReversal
-                        ? "text-red-600"
-                        : ""
+                      isVoided ? "line-through text-muted" : ""
                     }`}
                   >
-                    {isReversal ? "-" : ""}
                     {money(e.amount, lang as "en" | "ar")}
                   </Td>
                   <Td className="text-[12px]">{e.authorizedBy || "—"}</Td>
@@ -483,17 +494,34 @@ function ListView({
                     )}
                   </Td>
                   <Td className="text-end">
-                    {inactive ? (
-                      <span className="text-[11px] text-muted">—</span>
-                    ) : (
+                    <div className="inline-flex gap-1 flex-wrap justify-end">
                       <button
-                        onClick={() => onReverse(e)}
-                        title={tt("reverse_entry")}
-                        className="btn btn-soft btn-sm whitespace-nowrap"
+                        onClick={() => onView(e)}
+                        title={tt("view_entry")}
+                        className="btn btn-icon btn-soft"
                       >
-                        ↺ {tt("reverse_entry")}
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
                       </button>
-                    )}
+                      {!inactive && (
+                        <button
+                          onClick={() => onReverse(e)}
+                          title={tt("reverse_entry")}
+                          className="btn btn-soft btn-sm whitespace-nowrap"
+                        >
+                          ↺ {tt("reverse_entry")}
+                        </button>
+                      )}
+                    </div>
                   </Td>
                 </tr>
               );

@@ -387,6 +387,15 @@ export const I18N = {
     cannot_edit_warning:
       "Posted entries cannot be edited. To correct, issue a reversal entry.",
     reversal_recorded: "Reversal entry posted",
+    view_entry: "View Entry",
+    view_entry_title: "Accounting Entry",
+    entry_status_active: "Active",
+    entry_status_voided: "Voided (cancelled by reversal)",
+    entry_status_reversal: "Reversal Entry",
+    reverses_entry: "Reverses entry",
+    voided_by_entry: "Voided by reversal entry",
+    posted_on: "Posted",
+    voided_on: "Voided on",
   },
   ar: {
     brand: "المدير الإداري",
@@ -772,6 +781,15 @@ export const I18N = {
     cannot_edit_warning:
       "لا يمكن تعديل القيود بعد تسجيلها. للتصحيح، أصدر قيد عكسي.",
     reversal_recorded: "تم تسجيل القيد العكسي",
+    view_entry: "عرض القيد",
+    view_entry_title: "تفاصيل القيد",
+    entry_status_active: "نشط",
+    entry_status_voided: "ملغي (بقيد عكسي)",
+    entry_status_reversal: "قيد إلغاء",
+    reverses_entry: "يلغي القيد",
+    voided_by_entry: "ملغي بالقيد رقم",
+    posted_on: "تاريخ التسجيل",
+    voided_on: "تاريخ الإلغاء",
   },
 } as const;
 
