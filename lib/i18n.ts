@@ -366,6 +366,11 @@ export const I18N = {
     col_invoice: "Invoice",
     col_authorized: "Authorized",
     invoice_required_label: "Invoice attached",
+    section_supplier: "Supplier Info",
+    supplier_name: "Supplier Name",
+    supplier_phone: "Supplier Phone",
+    supplier_address: "Supplier Address",
+    col_supplier: "Supplier",
   },
   ar: {
     brand: "المدير الإداري",
@@ -730,6 +735,11 @@ export const I18N = {
     col_invoice: "الفاتورة",
     col_authorized: "الإذن",
     invoice_required_label: "تم إرفاق الفاتورة",
+    section_supplier: "بيانات المورد",
+    supplier_name: "اسم المورد",
+    supplier_phone: "رقم تليفون المورد",
+    supplier_address: "عنوان المورد",
+    col_supplier: "المورد",
   },
 } as const;
 

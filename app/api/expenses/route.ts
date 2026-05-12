@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 const EXP_COLUMNS = `
   id, category, year, month, amount,
-  vendor_name, authorized_by, expense_date,
+  vendor_name, supplier_name, supplier_phone, supplier_address,
+  authorized_by, expense_date,
   invoice_number, has_invoice, no_invoice_reason,
   notes, created_at, updated_at
 `;
@@ -57,14 +58,16 @@ export async function POST(req: NextRequest) {
     const { rows } = await c.query(
       `INSERT INTO expenses (
          category, year, month, amount,
-         vendor_name, authorized_by, expense_date,
+         vendor_name, supplier_name, supplier_phone, supplier_address,
+         authorized_by, expense_date,
          invoice_number, has_invoice, no_invoice_reason,
          notes
        ) VALUES (
          $1, $2, $3, $4,
-         $5, $6, $7,
-         $8, $9, $10,
-         $11
+         $5, $6, $7, $8,
+         $9, $10,
+         $11, $12, $13,
+         $14
        ) RETURNING ${EXP_COLUMNS}`,
       [
         category,
@@ -72,6 +75,9 @@ export async function POST(req: NextRequest) {
         body.month,
         amount,
         body.vendorName?.trim() || null,
+        body.supplierName?.trim() || null,
+        body.supplierPhone?.trim() || null,
+        body.supplierAddress?.trim() || null,
         body.authorizedBy?.trim() || null,
         body.expenseDate || null,
         hasInvoice ? body.invoiceNumber?.trim() || null : null,

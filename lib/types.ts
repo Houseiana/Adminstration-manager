@@ -128,6 +128,9 @@ export interface ExpenseEntry {
   month: number;
   amount: number;
   vendorName?: string;
+  supplierName?: string;
+  supplierPhone?: string;
+  supplierAddress?: string;
   authorizedBy?: string;
   expenseDate?: string;
   invoiceNumber?: string;

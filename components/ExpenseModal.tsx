@@ -32,6 +32,9 @@ export function ExpenseModal({
   const [amount, setAmount] = useState(0);
   const [expenseDate, setExpenseDate] = useState(todayISO());
   const [vendorName, setVendorName] = useState("");
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierPhone, setSupplierPhone] = useState("");
+  const [supplierAddress, setSupplierAddress] = useState("");
   const [authorizedBy, setAuthorizedBy] = useState("");
   const [hasInvoice, setHasInvoice] = useState(true);
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -50,6 +53,23 @@ export function ExpenseModal({
     return Array.from(set).sort();
   }, [expenses]);
 
+  const knownSuppliers = useMemo(() => {
+    const map = new Map<
+      string,
+      { phone?: string; address?: string }
+    >();
+    for (const e of expenses) {
+      if (e.supplierName) {
+        // remember the last-seen phone/address for autofill
+        map.set(e.supplierName, {
+          phone: e.supplierPhone,
+          address: e.supplierAddress,
+        });
+      }
+    }
+    return map;
+  }, [expenses]);
+
   const knownApprovers = useMemo(() => {
     const set = new Set<string>();
     for (const e of expenses) if (e.authorizedBy) set.add(e.authorizedBy);
@@ -66,6 +86,9 @@ export function ExpenseModal({
           `${expense.year}-${String(expense.month + 1).padStart(2, "0")}-01`
       );
       setVendorName(expense.vendorName ?? "");
+      setSupplierName(expense.supplierName ?? "");
+      setSupplierPhone(expense.supplierPhone ?? "");
+      setSupplierAddress(expense.supplierAddress ?? "");
       setAuthorizedBy(expense.authorizedBy ?? "");
       setHasInvoice(expense.hasInvoice);
       setInvoiceNumber(expense.invoiceNumber ?? "");
@@ -80,6 +103,9 @@ export function ExpenseModal({
           : todayISO();
       setExpenseDate(initialDate);
       setVendorName("");
+      setSupplierName("");
+      setSupplierPhone("");
+      setSupplierAddress("");
       setAuthorizedBy("");
       setHasInvoice(true);
       setInvoiceNumber("");
@@ -99,6 +125,9 @@ export function ExpenseModal({
       amount: Number(amount) || 0,
       expenseDate,
       vendorName: vendorName.trim() || undefined,
+      supplierName: supplierName.trim() || undefined,
+      supplierPhone: supplierPhone.trim() || undefined,
+      supplierAddress: supplierAddress.trim() || undefined,
       authorizedBy: authorizedBy.trim() || undefined,
       hasInvoice,
       invoiceNumber: hasInvoice ? invoiceNumber.trim() || undefined : undefined,
@@ -218,6 +247,48 @@ export function ExpenseModal({
               />
             </Field>
           )}
+        </Section>
+
+        {/* ============ SUPPLIER ============ */}
+        <Section icon="📦" title={t("section_supplier")}>
+          <Field className="sm:col-span-2" label={t("supplier_name")}>
+            <input
+              type="text"
+              value={supplierName}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSupplierName(v);
+                // Autofill phone/address when picking a known supplier
+                const known = knownSuppliers.get(v);
+                if (known) {
+                  if (!supplierPhone && known.phone) setSupplierPhone(known.phone);
+                  if (!supplierAddress && known.address)
+                    setSupplierAddress(known.address);
+                }
+              }}
+              list="expense-suppliers"
+            />
+            <datalist id="expense-suppliers">
+              {Array.from(knownSuppliers.keys()).sort().map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label={t("supplier_phone")}>
+            <input
+              type="tel"
+              value={supplierPhone}
+              onChange={(e) => setSupplierPhone(e.target.value)}
+              placeholder="+20 ..."
+            />
+          </Field>
+          <Field label={t("supplier_address")}>
+            <input
+              type="text"
+              value={supplierAddress}
+              onChange={(e) => setSupplierAddress(e.target.value)}
+            />
+          </Field>
         </Section>
 
         {/* ============ APPROVAL & NOTES ============ */}

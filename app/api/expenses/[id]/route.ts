@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 const EXP_COLUMNS = `
   id, category, year, month, amount,
-  vendor_name, authorized_by, expense_date,
+  vendor_name, supplier_name, supplier_phone, supplier_address,
+  authorized_by, expense_date,
   invoice_number, has_invoice, no_invoice_reason,
   notes, created_at, updated_at
 `;
@@ -44,9 +45,11 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     const { rows } = await c.query(
       `UPDATE expenses SET
          category = $2, year = $3, month = $4, amount = $5,
-         vendor_name = $6, authorized_by = $7, expense_date = $8,
-         invoice_number = $9, has_invoice = $10, no_invoice_reason = $11,
-         notes = $12
+         vendor_name = $6,
+         supplier_name = $7, supplier_phone = $8, supplier_address = $9,
+         authorized_by = $10, expense_date = $11,
+         invoice_number = $12, has_invoice = $13, no_invoice_reason = $14,
+         notes = $15
        WHERE id = $1 RETURNING ${EXP_COLUMNS}`,
       [
         id,
@@ -57,6 +60,15 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
         body.vendorName === undefined
           ? o.vendorName ?? null
           : body.vendorName?.trim() || null,
+        body.supplierName === undefined
+          ? o.supplierName ?? null
+          : body.supplierName?.trim() || null,
+        body.supplierPhone === undefined
+          ? o.supplierPhone ?? null
+          : body.supplierPhone?.trim() || null,
+        body.supplierAddress === undefined
+          ? o.supplierAddress ?? null
+          : body.supplierAddress?.trim() || null,
         body.authorizedBy === undefined
           ? o.authorizedBy ?? null
           : body.authorizedBy?.trim() || null,
