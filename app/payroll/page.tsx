@@ -46,7 +46,11 @@ export default function PayrollPage() {
       .map((emp) => ({
         emp,
         calc: calcPayroll(emp, year, month, adjustments, leaves, lateRecords),
-      }));
+      }))
+      // Hide employees who aren't yet hired (or who were terminated)
+      // for the entire selected month — they have no eligible work
+      // days, so they should not show any amounts at all.
+      .filter(({ calc }) => calc.eligibleWorkDays > 0);
   }, [employees, dept, status, search, year, month, adjustments, leaves, lateRecords]);
 
   const monthInfo = calcMonthDays(year, month);
