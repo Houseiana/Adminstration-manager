@@ -85,6 +85,8 @@ interface DataContextValue {
   // and marks the original as voided.
   reverseExpense: (id: string, reason?: string) => Promise<ExpenseEntry>;
 
+  loadError: string | null;
+
   ready: boolean;
   refresh: () => Promise<void>;
 }
@@ -116,6 +118,15 @@ async function api<T>(path: string, init?: ApiInit): Promise<T> {
     body: hasBody ? JSON.stringify(init!.body) : undefined,
   };
   const res = await fetch(path, opts);
+  if (res.status === 401) {
+    // Session expired or missing — bounce to /login so the user can
+    // sign back in instead of staring at an empty UI.
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      const from = window.location.pathname + window.location.search;
+      window.location.href = `/login?from=${encodeURIComponent(from)}`;
+    }
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
@@ -149,6 +160,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const [activities, setActivities] = useState<EmployeeActivity[]>([]);
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // ------------ Bootstrap from API ------------
   const refresh = useCallback(async () => {
@@ -184,12 +196,16 @@ export function Providers({ children }: { children: ReactNode }) {
         };
       }
       setAdjustments(adjMap);
+      setLoadError(null);
     } catch (e) {
-      // 401s on /login page are expected and silent.
+      // 401s redirect to /login automatically (see api()), so we
+      // don't surface those. Other errors get surfaced in the UI.
       const isLoginPage =
         typeof window !== "undefined" && window.location.pathname === "/login";
-      if (!isLoginPage) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!isLoginPage && msg !== "Unauthorized") {
         console.error("Failed to load data from API", e);
+        setLoadError(msg);
       }
     }
   }, []);
@@ -208,6 +224,23 @@ export function Providers({ children }: { children: ReactNode }) {
       return;
     }
     refresh().finally(() => setReady(true));
+  }, [refresh]);
+
+  // Re-fetch data when the user returns to the tab so stale tabs
+  // don't keep showing yesterday's snapshot.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onFocus = () => {
+      if (window.location.pathname === "/login") return;
+      refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") onFocus();
+    });
+    return () => {
+      window.removeEventListener("focus", onFocus);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -484,6 +517,7 @@ export function Providers({ children }: { children: ReactNode }) {
       expenses,
       addExpense,
       reverseExpense,
+      loadError,
       ready,
       refresh,
     }),
@@ -510,6 +544,7 @@ export function Providers({ children }: { children: ReactNode }) {
       expenses,
       addExpense,
       reverseExpense,
+      loadError,
       ready,
       refresh,
     ]

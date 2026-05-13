@@ -407,6 +407,11 @@ export const I18N = {
     total_for_year: "Year Total",
     entries_count: "Entries",
     avg_per_day: "Avg / Day",
+    refresh_data: "Refresh",
+    refreshing: "Refreshing…",
+    load_error_title: "Couldn't load data from server",
+    load_error_retry: "Try again",
+    syncing: "Syncing with server…",
   },
   ar: {
     brand: "المدير الإداري",
@@ -812,6 +817,11 @@ export const I18N = {
     total_for_year: "إجمالي السنة",
     entries_count: "عدد القيود",
     avg_per_day: "متوسط يومي",
+    refresh_data: "تحديث",
+    refreshing: "جارٍ التحديث…",
+    load_error_title: "تعذّر تحميل البيانات من الخادم",
+    load_error_retry: "إعادة المحاولة",
+    syncing: "مزامنة مع الخادم…",
   },
 } as const;
 
