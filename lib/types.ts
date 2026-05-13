@@ -67,7 +67,12 @@ export interface PayrollAdjustment {
 
 export type AdjustmentMap = Record<string, PayrollAdjustment>;
 
-export type LeaveType = "permission" | "absence" | "casual" | "sick";
+export type LeaveType =
+  | "permission"
+  | "absence"
+  | "casual"
+  | "sick"
+  | "half_day";
 
 export interface LeaveRecord {
   id: string;

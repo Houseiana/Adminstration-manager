@@ -181,10 +181,13 @@ export const I18N = {
     lt_absence: "Absence (No Permission)",
     lt_casual: "Casual Leave",
     lt_sick: "Sick Leave",
+    lt_half_day: "Half-Day Permission",
     lt_permission_desc: "1 day deducted per leave day.",
     lt_absence_desc: "3 days deducted per absent day.",
     lt_casual_desc: "Free up to 3 in any 90-day window. Beyond cap: 1 day.",
     lt_sick_desc: "1 day deducted with medical report; otherwise 3 days.",
+    lt_half_day_desc:
+      "Half-day's wage deducted. Applies to permissions over 2 hours (late arrival or early departure).",
     medical_report: "Medical report attached",
     medical_report_hint:
       "Required to apply the 1-day deduction; without it, sick leave is treated as absence (3x).",
@@ -591,10 +594,13 @@ export const I18N = {
     lt_absence: "غياب بدون إذن",
     lt_casual: "إجازة عارضة (طارئ)",
     lt_sick: "إجازة مرضية",
+    lt_half_day: "إذن نصف يوم",
     lt_permission_desc: "يخصم يوم عن كل يوم إجازة.",
     lt_absence_desc: "يخصم ٣ أيام عن كل يوم غياب.",
     lt_casual_desc: "مسموح ٣ مرات خلال ٩٠ يوماً مجاناً. بعدها: يخصم يوم.",
     lt_sick_desc: "يخصم يوم بتقرير طبي، وإلا تعامل كغياب (٣ أضعاف).",
+    lt_half_day_desc:
+      "يخصم نصف يوم. يطبق على الإذن الذي يزيد عن ساعتين سواء حضوراً أو انصرافاً.",
     medical_report: "مرفق تقرير طبي",
     medical_report_hint:
       "مطلوب لتطبيق خصم يوم واحد؛ بدونه تعامل الإجازة المرضية كغياب (٣ أضعاف).",

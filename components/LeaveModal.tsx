@@ -130,6 +130,7 @@ export function LeaveModal({ open, onClose, leave, defaultEmpId }: Props) {
 
   const typeOptions: { value: LeaveType; label: string; desc: string }[] = [
     { value: "permission", label: t("lt_permission"), desc: t("lt_permission_desc") },
+    { value: "half_day", label: t("lt_half_day"), desc: t("lt_half_day_desc") },
     { value: "absence", label: t("lt_absence"), desc: t("lt_absence_desc") },
     { value: "casual", label: t("lt_casual"), desc: t("lt_casual_desc") },
     { value: "sick", label: t("lt_sick"), desc: t("lt_sick_desc") },

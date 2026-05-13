@@ -17,6 +17,7 @@ import type { LeaveRecord, LeaveType } from "@/lib/types";
 
 const TYPE_BADGE: Record<LeaveType, string> = {
   permission: "badge-blue",
+  half_day: "badge-blue",
   absence: "badge-red",
   casual: "badge-yellow",
   sick: "badge-purple",
@@ -147,13 +148,20 @@ export default function LeavesPage() {
         <div className="card-header">
           <h3 className="card-title">{t("leave_rules")}</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 p-4">
           <RuleCard
             color="bg-blue-50 border-blue-200"
             icon="📝"
             title={t("lt_permission")}
             desc={t("lt_permission_desc")}
             mult="1×"
+          />
+          <RuleCard
+            color="bg-sky-50 border-sky-200"
+            icon="⏰"
+            title={t("lt_half_day")}
+            desc={t("lt_half_day_desc")}
+            mult="0.5×"
           />
           <RuleCard
             color="bg-red-50 border-red-200"

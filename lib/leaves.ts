@@ -18,6 +18,9 @@ export function leaveMultiplier(
       return isCasualOverCap ? 1 : 0;
     case "sick":
       return hasMedicalReport ? 1 : 3;
+    case "half_day":
+      // Permission > 2 hours (arrival or departure) → 0.5 day deducted.
+      return 0.5;
   }
 }
 
