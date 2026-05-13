@@ -275,6 +275,27 @@ export default function PayrollPage() {
                       setAdjustment(emp.id, year, month, { status: "paid" });
                       toast(t("paid"));
                     }}
+                    onUndo={() => {
+                      // Step back one stage in the workflow:
+                      // paid → approved, approved → draft, pending → draft
+                      const cur = calc.status;
+                      const next =
+                        cur === "paid"
+                          ? "approved"
+                          : "draft";
+                      const confirmMsg =
+                        cur === "paid"
+                          ? t("confirm_undo_payment")
+                          : t("confirm_undo_approval");
+                      const toastMsg =
+                        cur === "paid"
+                          ? t("payment_undone")
+                          : t("approval_undone");
+                      if (confirm(confirmMsg)) {
+                        setAdjustment(emp.id, year, month, { status: next });
+                        toast(toastMsg);
+                      }
+                    }}
                   />
                 ))
               )}
@@ -319,6 +340,7 @@ function PayrollRow({
   onSlip,
   onApprove,
   onPaid,
+  onUndo,
 }: {
   emp: Employee;
   calc: PayrollResult;
@@ -329,6 +351,7 @@ function PayrollRow({
   onSlip: () => void;
   onApprove: () => void;
   onPaid: () => void;
+  onUndo: () => void;
 }) {
   const { t, lang } = useLang();
   return (
@@ -402,6 +425,29 @@ function PayrollRow({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="1" x2="12" y2="23" />
                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </button>
+          )}
+          {(calc.status === "approved" || calc.status === "paid") && (
+            <button
+              onClick={onUndo}
+              title={
+                calc.status === "paid"
+                  ? t("undo_payment")
+                  : t("undo_approval")
+              }
+              className="btn btn-icon bg-amber-100 text-amber-800 hover:bg-amber-200 border-transparent"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
               </svg>
             </button>
           )}

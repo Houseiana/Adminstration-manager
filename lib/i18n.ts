@@ -120,6 +120,15 @@ export const I18N = {
     notes: "Notes",
     approve: "Approve",
     mark_paid: "Mark Paid",
+    undo_approval: "Undo Approval",
+    undo_payment: "Undo Payment",
+    undo: "Undo",
+    confirm_undo_approval:
+      "Revert this payroll back to draft? The approval will be removed.",
+    confirm_undo_payment:
+      "Revert this payment? The payroll will go back to 'approved' status.",
+    approval_undone: "Approval undone",
+    payment_undone: "Payment undone",
     payslip: "Payslip",
     download_print: "Download / Print",
     placeholder_title: "Module coming soon",
@@ -535,6 +544,15 @@ export const I18N = {
     notes: "ملاحظات",
     approve: "اعتماد",
     mark_paid: "تحديد كمدفوع",
+    undo_approval: "تراجع عن الاعتماد",
+    undo_payment: "تراجع عن الدفع",
+    undo: "تراجع",
+    confirm_undo_approval:
+      "هل تريد إلغاء اعتماد هذا الكشف وإرجاعه لحالة مسودة؟",
+    confirm_undo_payment:
+      "هل تريد إلغاء الدفع وإرجاع الكشف لحالة 'تمت الموافقة'؟",
+    approval_undone: "تم التراجع عن الاعتماد",
+    payment_undone: "تم التراجع عن الدفع",
     payslip: "قسيمة الراتب",
     download_print: "تحميل / طباعة",
     placeholder_title: "الوحدة قيد التطوير",
