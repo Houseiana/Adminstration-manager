@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from "react";
 import { Modal } from "./Modal";
 import { useData, useLang } from "./Providers";
 import { useToast } from "./Toast";
@@ -13,7 +13,6 @@ interface Props {
   defaultMonth?: number;
 }
 
-const TODAY = new Date();
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function ExpenseModal({
@@ -94,7 +93,7 @@ export function ExpenseModal({
     setNotes("");
   }, [open, defaultYear, defaultMonth]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: SyntheticEvent) => {
     e.preventDefault();
     if (!category.trim() || amount < 0) return;
     const date = new Date(expenseDate);
@@ -163,7 +162,7 @@ export function ExpenseModal({
             <input
               type="number"
               min={0}
-              step={50}
+              step={1}
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
               required
